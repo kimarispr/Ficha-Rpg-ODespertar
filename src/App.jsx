@@ -194,7 +194,6 @@ export default function App() {
   const parseAndRollDice = (expression) => {
     if (!expression) return { rolls: [], total: 0 };
     
-    // Expressão regular para capturar XdY+Z ou XdY-Z
     const match = expression.replace(/\s+/g, '').match(/^(\d+)d(\d+)([\+\-]\d+)?$/i);
     if (!match) {
       const val = parseInt(expression, 10);
@@ -228,7 +227,6 @@ export default function App() {
         isFail: d20 === 1
       });
     } else {
-      // Para rolagens de dano/expressão (ex: 1d8+2)
       const res = parseAndRollDice(bonus);
       setRollResult({
         title,
@@ -344,7 +342,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* NAVEGAÇÃO DE ABAS REORGANIZADAS */}
+        {/* NAVEGAÇÃO DE ABAS */}
         <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
           {[
             { id: 'geral', label: 'Geral & Status', icon: Shield },
@@ -372,7 +370,7 @@ export default function App() {
           })}
         </div>
 
-        {/* --- ABA 1: GERAL & STATUS (INCLUINDO PERÍCIAS EMBUTIDAS) --- */}
+        {/* --- ABA 1: GERAL & STATUS --- */}
         {activeTab === 'geral' && (
           <div className="space-y-6">
             {/* BARRAS DE STATUS COM BOTÕES */}
@@ -456,7 +454,7 @@ export default function App() {
 
             </div>
 
-            {/* DEFESAS & RESISTÊNCIAS COM EDIÇÃO DIRETA */}
+            {/* DEFESAS & RESISTÊNCIAS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center space-y-1">
@@ -500,7 +498,7 @@ export default function App() {
 
             </div>
 
-            {/* ATRIBUTOS BASE (CLICÁVEIS PARA ROLAGEM) */}
+            {/* ATRIBUTOS BASE */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <h3 className="text-sm font-bold uppercase tracking-wider text-amber-500 mb-4 flex items-center gap-2">
                 <Sword className="w-4 h-4" /> Atributos Base <span className="text-[10px] text-slate-500 font-normal">(Clique para rolar 1d20)</span>
@@ -554,7 +552,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* SEÇÃO DE PERÍCIAS INTEGRADA DIRETAMENTE NA ABA GERAL */}
+            {/* SEÇÃO DE PERÍCIAS INTEGRADA */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <h3 className="text-sm font-bold uppercase text-amber-500 flex items-center gap-2">
@@ -603,406 +601,359 @@ export default function App() {
                 })}
               </div>
             </div>
-
           </div>
         )}
 
         {/* --- ABA 2: COMBATE & ARMAS --- */}
         {activeTab === 'combate' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold uppercase text-amber-500 flex items-center gap-2">
-                <Sword className="w-4 h-4" /> Armas & Ataques <span className="text-[10px] text-slate-500 font-normal">(Clique na arma para rolar dano)</span>
+                <Sword className="w-4 h-4" /> Armas & Equipamentos de Combate
               </h3>
-              <button 
-                onClick={() => setModalType('weapon')} 
-                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1 rounded text-xs transition-all shadow-md"
+              <button
+                onClick={() => setModalType('weapon')}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition-all"
               >
-                <PlusCircle className="w-3.5 h-3.5" /> Adicionar Arma
+                <PlusCircle className="w-4 h-4" /> Nova Arma
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {weapons.map((w) => (
-                <div key={w.id} className="bg-slate-950 border border-slate-800 hover:border-amber-500/50 transition-all rounded-lg p-4 space-y-2 relative group">
-                  <button onClick={() => setWeapons(weapons.filter(x => x.id !== w.id))} className="absolute top-3 right-3 text-slate-600 hover:text-red-400 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-
-                  <button 
-                    onClick={() => rollCheck(`Dano: ${w.name}`, `${w.dice}${w.bonus.startsWith('+') ? w.bonus : `+${w.bonus}`}`, false)}
-                    className="text-left w-full cursor-pointer"
-                  >
-                    <h4 className="font-bold text-amber-400 text-base group-hover:underline flex items-center gap-2">
-                      {w.name} <Dices className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" />
-                    </h4>
-                    
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs py-2 my-2 bg-slate-900 rounded border border-slate-800/80">
-                      <div>
-                        <span className="block text-[9px] uppercase text-slate-500">Dados Dano</span>
-                        <strong className="text-slate-200">{w.dice}</strong>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] uppercase text-slate-500">Bônus</span>
-                        <strong className="text-amber-400">{w.bonus}</strong>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] uppercase text-slate-500">Tipo</span>
-                        <strong className="text-purple-400">{w.type}</strong>
-                      </div>
+                <div key={w.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 relative group hover:border-slate-700 transition-all">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-100 text-base">{w.name}</h4>
+                      <span className="text-[10px] font-semibold uppercase text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{w.type}</span>
                     </div>
+                    <button 
+                      onClick={() => setWeapons(prev => prev.filter(item => item.id !== w.id))}
+                      className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                      title="Excluir Arma"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                    {w.desc && <p className="text-xs text-slate-400 italic">{w.desc}</p>}
-                  </button>
+                  {w.desc && <p className="text-xs text-slate-400 leading-relaxed">{w.desc}</p>}
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-800/80">
+                    <button
+                      onClick={() => {
+                        const bonusNum = parseInt(w.bonus, 10) || 0;
+                        rollCheck(`Ataque com ${w.name}`, bonusNum);
+                      }}
+                      className="flex-1 bg-slate-950 hover:bg-slate-800 border border-slate-700 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 text-slate-200 transition-colors"
+                    >
+                      <Dices className="w-4 h-4 text-amber-400" /> Rolar Ataque ({w.bonus || '+0'})
+                    </button>
+                    <button
+                      onClick={() => rollCheck(`Dano: ${w.name}`, `${w.dice}${w.bonus}`, false)}
+                      className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 text-amber-400 transition-colors"
+                    >
+                      <Sword className="w-4 h-4" /> Rolar Dano ({w.dice})
+                    </button>
+                  </div>
                 </div>
               ))}
+              {weapons.length === 0 && (
+                <div className="col-span-full bg-slate-900/50 border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-500 text-xs">
+                  Nenhuma arma cadastrada. Clique em "Nova Arma" para adicionar.
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* --- ABA 3: HABILIDADES & MAGIAS --- */}
         {activeTab === 'habilidades' && (
-          <div className="space-y-6">
-            {[
-              { id: 'simples', name: 'Habilidades Simples', color: 'border-slate-700 text-slate-300' },
-              { id: 'normais', name: 'Habilidades Normais', color: 'border-blue-800 text-blue-400' },
-              { id: 'grandes', name: 'Habilidades Grandes', color: 'border-purple-800 text-purple-400' },
-              { id: 'grandiosa', name: 'Habilidades Grandiosas', color: 'border-amber-800 text-amber-400' },
-              { id: 'supremas', name: 'Habilidades Supremas', color: 'border-red-800 text-red-400' },
-              { id: 'absolutas', name: 'Habilidades Absolutas', color: 'border-cyan-500 text-cyan-300' },
-            ].map((cat) => (
-              <div key={cat.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <h4 className={`text-sm font-bold uppercase tracking-wider ${cat.color}`}>{cat.name}</h4>
-                  <button 
-                    onClick={() => {
-                      setSelectedCategory(cat.id);
-                      setModalType('skill');
-                    }} 
-                    className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-2.5 py-1 rounded transition-colors"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" /> Adicionar
-                  </button>
-                </div>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-sm font-bold uppercase text-amber-500 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> Habilidades & Magias
+              </h3>
+              <button
+                onClick={() => setModalType('skill')}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition-all self-start sm:self-auto"
+              >
+                <PlusCircle className="w-4 h-4" /> Nova Habilidade
+              </button>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {skills[cat.id]?.map((s) => (
-                    <div key={s.id} className="bg-slate-950 border border-slate-800 rounded p-3 relative space-y-1 hover:border-slate-700 transition-all group">
-                      <button 
-                        onClick={() => setSkills(prev => ({ ...prev, [cat.id]: prev[cat.id].filter(x => x.id !== s.id) }))} 
-                        className="absolute top-2.5 right-2.5 text-slate-600 hover:text-red-400 z-10"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+            {/* Categorias de Habilidades */}
+            <div className="flex flex-wrap gap-1.5 border-b border-slate-800 pb-2">
+              {[
+                { id: 'simples', label: 'Simples' },
+                { id: 'normais', label: 'Normais' },
+                { id: 'grandes', label: 'Grandes' },
+                { id: 'grandiosa', label: 'Grandiosa' },
+                { id: 'supremas', label: 'Supremas' },
+                { id: 'absolutas', label: 'Absolutas' },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-purple-600 text-white shadow'
+                      : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
+                >
+                  {cat.label} ({skills[cat.id]?.length || 0})
+                </button>
+              ))}
+            </div>
 
-                      <button 
-                        onClick={() => {
-                          if (s.dice) rollCheck(`Efeito/Dano: ${s.name}`, s.dice, false);
-                        }}
-                        className="text-left w-full"
-                      >
-                        <div className="flex items-center justify-between pr-6">
-                          <h5 className="font-bold text-xs text-slate-200 group-hover:text-amber-400 flex items-center gap-1">
-                            {s.name} {s.dice && <Dices className="w-3 h-3 text-amber-500" />}
-                          </h5>
-                          {s.cost && <span className="text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800 px-1.5 py-0.5 rounded">{s.cost}</span>}
-                        </div>
-                        {s.dice && <div className="text-[11px] font-mono text-amber-400 font-bold mt-1">Dados: {s.dice}</div>}
-                        {s.desc && <p className="text-xs text-slate-400 mt-1">{s.desc}</p>}
-                      </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(skills[selectedCategory] || []).map((s) => (
+                <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 relative group hover:border-slate-700 transition-all">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-100 text-base">{s.name}</h4>
+                      {s.cost && <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/50">{s.cost}</span>}
                     </div>
-                  ))}
-                  {skills[cat.id]?.length === 0 && (
-                    <span className="text-xs text-slate-600 italic">Nenhuma habilidade cadastrada nesta categoria.</span>
-                  )}
+                    <button 
+                      onClick={() => setSkills(prev => ({
+                        ...prev,
+                        [selectedCategory]: prev[selectedCategory].filter(item => item.id !== s.id)
+                      }))}
+                      className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                      title="Excluir Habilidade"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {s.desc && <p className="text-xs text-slate-400 leading-relaxed">{s.desc}</p>}
+
+                  <div className="pt-2 border-t border-slate-800/80">
+                    <button
+                      onClick={() => rollCheck(`Efeito: ${s.name}`, s.dice, false)}
+                      className="w-full bg-purple-950/50 hover:bg-purple-900/50 border border-purple-800/50 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1.5 text-purple-300 transition-colors"
+                    >
+                      <Dices className="w-4 h-4 text-purple-400" /> Rolar Efeito / Dano ({s.dice})
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+              {(!skills[selectedCategory] || skills[selectedCategory].length === 0) && (
+                <div className="col-span-full bg-slate-900/50 border border-dashed border-slate-800 rounded-xl p-8 text-center text-slate-500 text-xs">
+                  Nenhuma habilidade nesta categoria.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* --- ABA 4: INVENTÁRIO --- */}
         {activeTab === 'inventario' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-sm font-bold uppercase text-amber-500 flex items-center gap-2">
-                <Backpack className="w-4 h-4" /> Inventário & Equipamentos
+                <Backpack className="w-4 h-4" /> Inventário & Itens
               </h3>
-              <button 
-                onClick={() => setModalType('inventory')} 
-                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1 rounded text-xs transition-all"
+              <button
+                onClick={() => setModalType('inventory')}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition-all"
               >
-                <PlusCircle className="w-3.5 h-3.5" /> Adicionar Item
+                <PlusCircle className="w-4 h-4" /> Adicionar Item
               </button>
             </div>
 
-            <div className="space-y-2">
-              {inventory.map((item) => (
-                <div key={item.id} className="flex items-center justify-between bg-slate-950 border border-slate-800 p-3 rounded-lg text-xs">
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-slate-200">{item.item}</span>
-                    <span className="text-slate-500">Qtd: <strong className="text-amber-400">{item.quantity}</strong></span>
-                    <span className="text-slate-500">Peso: <strong className="text-slate-400">{item.weight}</strong></span>
-                  </div>
-                  <button onClick={() => setInventory(inventory.filter(x => x.id !== item.id))} className="text-slate-600 hover:text-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-800">
+                  <tr>
+                    <th className="p-3">Item</th>
+                    <th className="p-3 text-center">Qtd</th>
+                    <th className="p-3 text-center">Peso</th>
+                    <th className="p-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {inventory.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="p-3 font-semibold text-slate-200">{inv.item}</td>
+                      <td className="p-3 text-center font-mono">{inv.quantity}</td>
+                      <td className="p-3 text-center text-slate-400">{inv.weight}</td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => setInventory(prev => prev.filter(i => i.id !== inv.id))}
+                          className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                          title="Remover Item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {inventory.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="p-6 text-center text-slate-500">
+                        Inventário vazio.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
         {/* --- ABA 5: ANOTAÇÕES --- */}
         {activeTab === 'anotacoes' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-3">
+          <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase text-amber-500 flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Anotações da Campanha
+              <FileText className="w-4 h-4" /> Anotações & Diário da Campanha
             </h3>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Escreva aqui suas anotações, pistas, nomes de NPCs, locais..."
-              className="w-full h-80 bg-slate-950 border border-slate-800 rounded-lg p-4 text-sm text-slate-200 focus:outline-none focus:border-amber-500 resize-none font-mono"
+              placeholder="Escreva suas anotações, histórico da sessão, pistas, metas..."
+              className="w-full h-96 bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 focus:outline-none focus:border-amber-500 resize-y leading-relaxed font-sans"
             />
           </div>
         )}
 
+        {/* BANNER FLUTUANTE DE ROLAGEM DE DADOS */}
+        {rollResult && (
+          <div className="fixed bottom-6 right-6 bg-slate-900 border-2 border-amber-500/80 rounded-2xl p-5 shadow-2xl z-50 max-w-xs w-full">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">{rollResult.title}</span>
+              <button onClick={() => setRollResult(null)} className="text-slate-400 hover:text-slate-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex items-baseline justify-between my-2">
+              <span className="text-3xl font-extrabold font-mono text-slate-100">{rollResult.total}</span>
+              <span className="text-xs text-slate-400 font-mono">{rollResult.detail}</span>
+            </div>
+            {rollResult.isCrit && <div className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest text-center mt-1 bg-emerald-950/60 py-1 rounded border border-emerald-800/50">Sucesso Crítico! (20)</div>}
+            {rollResult.isFail && <div className="text-xs font-extrabold text-red-400 uppercase tracking-widest text-center mt-1 bg-red-950/60 py-1 rounded border border-red-800/50">Falha Crítica! (1)</div>}
+          </div>
+        )}
+
+        {/* MODAL: ADICIONAR ARMA */}
+        {modalType === 'weapon' && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-amber-500 text-sm uppercase">Adicionar Nova Arma</h3>
+                <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-100"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={handleAddWeapon} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Nome da Arma</label>
+                  <input type="text" required value={weaponForm.name} onChange={e => setWeaponForm({...weaponForm, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Dado Dano</label>
+                    <input type="text" value={weaponForm.dice} onChange={e => setWeaponForm({...weaponForm, dice: e.target.value})} placeholder="1d8" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Bônus Ataque</label>
+                    <input type="text" value={weaponForm.bonus} onChange={e => setWeaponForm({...weaponForm, bonus: e.target.value})} placeholder="+2" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Tipo Dano</label>
+                    <input type="text" value={weaponForm.type} onChange={e => setWeaponForm({...weaponForm, type: e.target.value})} placeholder="Corte" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Descrição / Notas</label>
+                  <textarea value={weaponForm.desc} onChange={e => setWeaponForm({...weaponForm, desc: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-100 focus:border-amber-500 outline-none h-20 resize-none" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 rounded-lg">Salvar Arma</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: ADICIONAR HABILIDADE */}
+        {modalType === 'skill' && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-purple-400 text-sm uppercase">Adicionar Nova Habilidade / Magia</h3>
+                <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-100"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={handleAddSkill} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Categoria</label>
+                  <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-100 focus:border-purple-500 outline-none">
+                    <option value="simples">Simples</option>
+                    <option value="normais">Normais</option>
+                    <option value="grandes">Grandes</option>
+                    <option value="grandiosa">Grandiosa</option>
+                    <option value="supremas">Supremas</option>
+                    <option value="absolutas">Absolutas</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Nome da Habilidade</label>
+                  <input type="text" required value={skillForm.name} onChange={e => setSkillForm({...skillForm, name: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-sm text-slate-100 focus:border-purple-500 outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Dado / Efeito</label>
+                    <input type="text" value={skillForm.dice} onChange={e => setSkillForm({...skillForm, dice: e.target.value})} placeholder="2d6" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-purple-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Custo Mana/Energia</label>
+                    <input type="text" value={skillForm.cost} onChange={e => setSkillForm({...skillForm, cost: e.target.value})} placeholder="5 Mana" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-purple-500 outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Descrição do Efeito</label>
+                  <textarea value={skillForm.desc} onChange={e => setSkillForm({...skillForm, desc: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-slate-100 focus:border-purple-500 outline-none h-20 resize-none" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white rounded-lg">Salvar Habilidade</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: ADICIONAR ITEM AO INVENTÁRIO */}
+        {modalType === 'inventory' && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="font-bold text-amber-500 text-sm uppercase">Adicionar Item ao Inventário</h3>
+                <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-slate-100"><X className="w-5 h-5" /></button>
+              </div>
+              <form onSubmit={handleAddItem} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Nome do Item</label>
+                  <input type="text" required value={itemForm.item} onChange={e => setItemForm({...itemForm, item: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Quantidade</label>
+                    <input type="number" min="1" value={itemForm.quantity} onChange={e => setItemForm({...itemForm, quantity: Number(e.target.value)})} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-slate-400 font-bold mb-1">Peso</label>
+                    <input type="text" value={itemForm.weight} onChange={e => setItemForm({...itemForm, weight: e.target.value})} placeholder="0.5kg" className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-slate-100 focus:border-amber-500 outline-none" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-xs font-bold text-slate-950 rounded-lg">Salvar Item</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
-
-      {/* CAIXA FLUTUANTE DE RESULTADO DE ROLAGEM */}
-      {rollResult && (
-        <div className="fixed bottom-4 right-4 z-50 bg-slate-900 border-2 border-amber-500 rounded-xl p-4 shadow-2xl min-w-[240px] animate-in fade-in slide-in-from-bottom-4">
-          <div className="flex justify-between items-start mb-1">
-            <span className="text-[10px] font-bold uppercase text-amber-500 tracking-wider flex items-center gap-1">
-              <Dices className="w-3.5 h-3.5" /> Rolagem de Dado
-            </span>
-            <button onClick={() => setRollResult(null)} className="text-slate-500 hover:text-slate-300">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <h4 className="text-xs font-bold text-slate-200 mb-2">{rollResult.title}</h4>
-
-          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center space-y-1">
-            <div className="text-3xl font-extrabold font-mono text-amber-400">
-              {rollResult.total}
-            </div>
-            <div className="text-[11px] font-mono text-slate-400">
-              {rollResult.detail}
-            </div>
-            {rollResult.isCrit && <div className="text-xs font-bold text-emerald-400 uppercase tracking-widest mt-1">SUCESSO CRÍTICO!</div>}
-            {rollResult.isFail && <div className="text-xs font-bold text-red-500 uppercase tracking-widest mt-1">FALHA CRÍTICA!</div>}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL INTEGRADO: ADICIONAR ARMA */}
-      {modalType === 'weapon' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-amber-500 text-sm uppercase flex items-center gap-2">
-                <Sword className="w-4 h-4" /> Cadastrar Nova Arma
-              </h3>
-              <button onClick={() => setModalType(null)} className="text-slate-500 hover:text-slate-300">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddWeapon} className="space-y-3">
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Nome da Arma</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="Ex: Espada Longa"
-                  value={weaponForm.name} 
-                  onChange={(e) => setWeaponForm({ ...weaponForm, name: e.target.value })} 
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm focus:border-amber-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Dados</label>
-                  <input 
-                    type="text" 
-                    placeholder="1d8"
-                    value={weaponForm.dice} 
-                    onChange={(e) => setWeaponForm({ ...weaponForm, dice: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-center focus:border-amber-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Bônus</label>
-                  <input 
-                    type="text" 
-                    placeholder="+2"
-                    value={weaponForm.bonus} 
-                    onChange={(e) => setWeaponForm({ ...weaponForm, bonus: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-center focus:border-amber-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Tipo</label>
-                  <input 
-                    type="text" 
-                    placeholder="Corte"
-                    value={weaponForm.type} 
-                    onChange={(e) => setWeaponForm({ ...weaponForm, type: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-center focus:border-amber-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Observações / Descrição</label>
-                <textarea 
-                  rows="2"
-                  placeholder="Arma de uma mão, versátil..."
-                  value={weaponForm.desc} 
-                  onChange={(e) => setWeaponForm({ ...weaponForm, desc: e.target.value })} 
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-sm focus:border-amber-500 outline-none resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded">Salvar Arma</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL INTEGRADO: ADICIONAR HABILIDADE */}
-      {modalType === 'skill' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-amber-500 text-sm uppercase flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> Cadastrar Habilidade / Magia
-              </h3>
-              <button onClick={() => setModalType(null)} className="text-slate-500 hover:text-slate-300">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSkill} className="space-y-3">
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Nome da Habilidade</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="Ex: Bola de Fogo"
-                  value={skillForm.name} 
-                  onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })} 
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm focus:border-amber-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Custo de Mana</label>
-                  <input 
-                    type="text" 
-                    placeholder="10 Mana"
-                    value={skillForm.cost} 
-                    onChange={(e) => setSkillForm({ ...skillForm, cost: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm focus:border-amber-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Dados de Dano/Efeito (Opcional)</label>
-                  <input 
-                    type="text" 
-                    placeholder="3d6"
-                    value={skillForm.dice} 
-                    onChange={(e) => setSkillForm({ ...skillForm, dice: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm focus:border-amber-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Descrição / Efeito</label>
-                <textarea 
-                  rows="3"
-                  placeholder="Explosão de fogo que atinge inimigos no raio de 6 metros..."
-                  value={skillForm.desc} 
-                  onChange={(e) => setSkillForm({ ...skillForm, desc: e.target.value })} 
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-sm focus:border-amber-500 outline-none resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded">Salvar Habilidade</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL INTEGRADO: ADICIONAR ITEM DO INVENTÁRIO */}
-      {modalType === 'inventory' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="font-bold text-amber-500 text-sm uppercase flex items-center gap-2">
-                <Backpack className="w-4 h-4" /> Adicionar Item ao Inventário
-              </h3>
-              <button onClick={() => setModalType(null)} className="text-slate-500 hover:text-slate-300">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddItem} className="space-y-3">
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Nome do Item</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="Ex: Poção de Cura"
-                  value={itemForm.item} 
-                  onChange={(e) => setItemForm({ ...itemForm, item: e.target.value })} 
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm focus:border-amber-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Quantidade</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    value={itemForm.quantity} 
-                    onChange={(e) => setItemForm({ ...itemForm, quantity: Number(e.target.value) })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-center focus:border-amber-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Peso / Detalhe</label>
-                  <input 
-                    type="text" 
-                    placeholder="0.5kg"
-                    value={itemForm.weight} 
-                    onChange={(e) => setItemForm({ ...itemForm, weight: e.target.value })} 
-                    className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-sm text-center focus:border-amber-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded">Adicionar Item</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
