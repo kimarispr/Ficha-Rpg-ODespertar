@@ -25,6 +25,18 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' }
 ];
 
+// Atributo usado nas habilidades conforme a Classe de Poder.
+// Adicione aqui as demais classes do seu sistema conforme as regras do RPG.
+const CLASS_ABILITY_ATTRIBUTE = {
+  espiritualista: 'Inteligência'
+};
+
+const normalizeClassName = (name = '') =>
+  name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
 
@@ -189,13 +201,14 @@ export default function App() {
     triggerRoll({ label, diceRoll, mod });
   };
 
-  const rollDamage = (diceNotation, label) => {
+  const rollDamage = (diceNotation, label, extraMod = 0) => {
     const parts = diceNotation.toLowerCase().replace(/\s+/g, '').split('+');
     let total = 0;
     
-    // Tratamento básico para notações do tipo XdX + Y
+    // Tratamento básico para notações do tipo XdX + Y.
+    // extraMod é o modificador do atributo da classe (quando aplicável).
     const dicePart = parts[0];
-    const bonus = parts[1] ? parseInt(parts[1]) || 0 : 0;
+    const bonus = (parts[1] ? parseInt(parts[1]) || 0 : 0) + extraMod;
 
     if (dicePart.includes('d')) {
       const [count, sides] = dicePart.split('d').map(n => parseInt(n) || 1);
@@ -243,14 +256,32 @@ export default function App() {
     setIsItemModalOpen(false);
   };
 
+  const getAbilityAttribute = () => {
+    const classKey = normalizeClassName(charInfo.baseClass);
+    return CLASS_ABILITY_ATTRIBUTE[classKey] || null;
+  };
+
   const castAbility = (ability) => {
+    const abilityAttribute = getAbilityAttribute();
+
+    if (!abilityAttribute) {
+      alert(`A classe "${charInfo.baseClass || 'não definida'}" ainda não possui um atributo de habilidade configurado.\n\nConfigure essa classe em CLASS_ABILITY_ATTRIBUTE no código.`);
+      return;
+    }
+
     if (energy.current >= ability.cost) {
+      const attributeMod = getMod(attributes[abilityAttribute] || 10);
+      const attackMod = attributeMod + profBonus;
+      const rollLabel = `Habilidade: ${ability.name} (${abilityAttribute})`;
+
       setEnergy((prev) => ({ ...prev, current: prev.current - ability.cost }));
+
       if (ability.damage) {
-        rollDamage(ability.damage, `Habilidade: ${ability.name}`);
+        // O atributo da classe soma no dano/cura da habilidade.
+        rollDamage(ability.damage, rollLabel, attributeMod);
       } else {
-        // Rola teste direto de Poder (Sem modificador negativo)
-        rollD20(attributes.Poder, `Habilidade: ${ability.name}`);
+        // Ataque/teste da habilidade usa o atributo da classe + proficiência.
+        rollD20(attackMod, rollLabel);
       }
     } else {
       alert('Energia insuficiente para conjurar esta habilidade!');
@@ -443,7 +474,13 @@ export default function App() {
                   value={charInfo.baseClass}
                   onChange={(e) => setCharInfo({ ...charInfo, baseClass: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500"
+                  placeholder="Ex.: Espiritualista"
                 />
+                {getAbilityAttribute() && (
+                  <p className="text-[10px] text-cyan-400 mt-1">
+                    Habilidades usam: <strong>{getAbilityAttribute()}</strong>
+                  </p>
+                )}
               </div>
             </div>
 
