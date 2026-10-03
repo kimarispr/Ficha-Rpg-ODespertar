@@ -234,15 +234,24 @@ export default function App() {
     triggerRoll({ label, diceRoll, mod });
   };
 
-  // Rolagens soltas de dados, sem modificadores.
-  const rollFreeDie = (sides) => {
-    const diceRoll = Math.floor(Math.random() * sides) + 1;
+  // Rolagem livre configurável: quantidade de dados + tipo de dado + bônus.
+  const rollFreeDice = (count, sides, bonus = 0) => {
+    const safeCount = Math.min(100, Math.max(1, Number(count) || 1));
+    const safeSides = Math.min(1000, Math.max(2, Number(sides) || 20));
+    const safeBonus = Number(bonus) || 0;
+    let diceTotal = 0;
+
+    for (let i = 0; i < safeCount; i++) {
+      diceTotal += Math.floor(Math.random() * safeSides) + 1;
+    }
+
+    const bonusText = safeBonus === 0 ? '' : safeBonus > 0 ? ` + ${safeBonus}` : ` - ${Math.abs(safeBonus)}`;
     triggerRoll({
-      label: `Rolagem livre: 1d${sides}`,
-      diceRoll,
-      mod: 0,
+      label: `Rolagem livre: ${safeCount}d${safeSides}${bonusText}`,
+      diceRoll: diceTotal,
+      mod: safeBonus,
       isDamage: false,
-      notation: `1d${sides}`
+      notation: `${safeCount}d${safeSides}${bonusText}`
     });
   };
 
@@ -955,19 +964,73 @@ export default function App() {
                   <p className="text-xs text-slate-500 mt-1">Role um dado livremente, sem modificador ou vínculo com uma habilidade.</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {[4, 6, 8, 12, 20].map((sides) => (
-                  <button
-                    key={sides}
-                    type="button"
-                    onClick={() => rollFreeDie(sides)}
-                    className="group bg-slate-950 border border-cyan-900/70 hover:border-cyan-500/70 hover:bg-cyan-950/30 rounded-xl p-4 transition flex flex-col items-center justify-center gap-2"
-                  >
-                    <Dices className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition" />
-                    <span className="text-lg font-black text-slate-100">1d{sides}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Rolar</span>
-                  </button>
-                ))}
+              <div className="bg-slate-950 border border-cyan-900/60 rounded-xl p-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Quantidade de dados</label>
+                    <input
+                      id="free-dice-count"
+                      type="number"
+                      min="1"
+                      max="100"
+                      defaultValue="1"
+                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Tipo de dado</label>
+                    <select
+                      id="free-dice-sides"
+                      defaultValue="20"
+                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                    >
+                      {[4, 6, 8, 12, 20].map((sides) => (
+                        <option key={sides} value={sides}>d{sides}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Bônus / modificador</label>
+                    <input
+                      id="free-dice-bonus"
+                      type="number"
+                      step="1"
+                      defaultValue="0"
+                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                      placeholder="Ex: +3 ou -2"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const count = document.getElementById('free-dice-count')?.value;
+                    const sides = document.getElementById('free-dice-sides')?.value;
+                    const bonus = document.getElementById('free-dice-bonus')?.value;
+                    rollFreeDice(count, sides, bonus);
+                  }}
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <Dices className="w-5 h-5" />
+                  Rolar Dados
+                </button>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {[4, 6, 8, 12, 20].map((sides) => (
+                    <button
+                      key={sides}
+                      type="button"
+                      onClick={() => {
+                        const sidesInput = document.getElementById('free-dice-sides');
+                        if (sidesInput) sidesInput.value = String(sides);
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 border border-slate-700 hover:border-cyan-500/60 rounded-lg text-xs font-bold text-slate-300 hover:text-cyan-300 transition"
+                    >
+                      d{sides}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
 
