@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { D20, History, Trash2, Shield, Heart, Zap, User, BookOpen, Sparkles } from 'lucide-react';
+import { Dices, History, Trash2, User, BookOpen } from 'lucide-react';
 
 const initialSkills = [
   { name: 'Acrobacia', attr: 'Agilidade' },
@@ -35,7 +35,6 @@ export default function App() {
 
   const [proficientSkills, setProficientSkills] = useState(['Percepção', 'Atletismo']);
   const [rollHistory, setRollHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
 
   // Modificador de atributo = Math.floor((valor - 10) / 2)
   const getMod = (val) => Math.floor((val - 10) / 2);
@@ -111,7 +110,7 @@ export default function App() {
                       onClick={() => rollD20(mod, `Atributo: ${attr}`)}
                       className="mt-2 flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs py-1 px-2 rounded transition"
                     >
-                      <D20 className="w-3.5 h-3.5" /> Rolar
+                      <Dices className="w-3.5 h-3.5" /> Rolar
                     </button>
                   </div>
                 );
@@ -152,7 +151,7 @@ export default function App() {
                         className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded transition"
                         title={`Rolar ${skill.name}`}
                       >
-                        <D20 className="w-4 h-4" />
+                        <Dices className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -162,7 +161,7 @@ export default function App() {
           </section>
         </div>
 
-        {/* PAINEL / HISTÓRICO DE ROLAGENS (FLUTUANTE OU FIXO) */}
+        {/* HISTÓRICO DE ROLAGENS */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-3">
             <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -185,7 +184,7 @@ export default function App() {
               {rollHistory.map((roll) => (
                 <div key={roll.id} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800 text-sm">
                   <div className="flex items-center gap-3">
-                    <D20 className={`w-5 h-5 ${roll.isCrit ? 'text-emerald-400' : roll.isFail ? 'text-rose-500' : 'text-amber-400'}`} />
+                    <Dices className={`w-5 h-5 ${roll.isCrit ? 'text-emerald-400' : roll.isFail ? 'text-rose-500' : 'text-amber-400'}`} />
                     <div>
                       <span className="font-semibold text-slate-200">{roll.label}</span>
                       <span className="text-xs text-slate-500 ml-2">[{roll.time}]</span>
