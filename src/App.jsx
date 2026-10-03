@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Dices, History, Trash2, Heart, Zap, Shield, User, BookOpen, 
-  Sparkles, Backpack, Scroll, Plus, Minus, Swords, Crosshair, Award 
+  Sparkles, Backpack, Scroll, Plus, Minus, Swords, Crosshair, X, PackagePlus
 } from 'lucide-react';
 
 const initialSkills = [
@@ -30,20 +30,20 @@ export default function App() {
   
   // Perfil do Personagem & Mutação
   const [charInfo, setCharInfo] = useState({
-    name: 'Valeros',
-    level: 3,
-    mutation: 'E', // U, N, T, E, M
-    baseClass: 'Brutamontes',
-    advClass: 'Colosso'
+    name: 'Pango',
+    level: 5,
+    mutation: 'N',
+    baseClass: 'Espiritualista',
+    advClass: 'Nenhuma'
   });
 
   // Status Vitais
-  const [hp, setHp] = useState({ current: 28, max: 32 });
-  const [energy, setEnergy] = useState({ current: 20, max: 30, reserved: 0 });
-  const [armorClass, setArmorClass] = useState(16);
-  const [profBonus, setProfBonus] = useState(2);
+  const [hp, setHp] = useState({ current: 45, max: 45 });
+  const [energy, setEnergy] = useState({ current: 76, max: 78 });
+  const [armorClass, setArmorClass] = useState(12);
+  const [profBonus, setProfBonus] = useState(3);
 
-  // Atributos (Incluindo PODER)
+  // Atributos
   const [attributes, setAttributes] = useState({
     Força: 14,
     Agilidade: 12,
@@ -51,88 +51,108 @@ export default function App() {
     Inteligência: 10,
     Sabedoria: 13,
     Carisma: 8,
-    Poder: 5
+    Poder: 5 // Poder não possui modificador negativo/fórmula tradicional
   });
 
   // Perícias Proficientes
-  const [proficientSkills, setProficientSkills] = useState(['Percepção', 'Atletismo']);
+  const [proficientSkills, setProficientSkills] = useState(['Atletismo', 'Percepção']);
 
   // Armas de Combate
   const [weapons, setWeapons] = useState([
-    { id: 1, name: 'Espada Grande', dmg: '2d6', attr: 'Força', prop: 'Pesada, Duas Mãos' },
-    { id: 2, name: 'Dardo Elemental', dmg: '1d6', attr: 'Poder', prop: 'Distância (18m)' }
+    { id: 1, name: 'Manoplas Salamandras de Magma', dmg: '3d8 + 9', attr: 'Força', prop: 'Nenhuma' }
   ]);
-  const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
 
-  // Habilidades / Magias
+  // Habilidades
   const [abilities, setAbilities] = useState([
-    { id: 1, name: 'Impacto Devastador', tier: 'Normal (3-5x)', cost: 4, area: 'Corpo a Corpo', dur: 'Instantânea', desc: 'Causa dano físico extra + efeito de derrubar o alvo.' },
-    { id: 2, name: 'Escudo Elemental', tier: 'Grande (6-15x)', cost: 8, area: '3m', dur: '3 turnos', desc: '+4 na CA e resistência a danos elementais.' }
+    { id: 1, name: 'Dardo Elemental', tier: 'Simples (1-2x)', cost: 2, damage: '1d6 + 2', area: '3m', dur: 'Instantânea', desc: 'Dispara uma esfera de energia elemental pura.' }
   ]);
-  const [newAbility, setNewAbility] = useState({ name: '', tier: 'Simples (1-2x)', cost: 2, area: '3m', dur: '2 turnos', desc: '' });
 
-  // Histórico de Rolagens
-  const [rollHistory, setRollHistory] = useState([]);
-
-  // Inventário e Notas
+  // Inventário
   const [gold, setGold] = useState(45);
   const [inventory, setInventory] = useState([
-    { id: 1, name: 'Escudo de Aço', qty: 1, weight: '3.0 kg' },
-    { id: 2, name: 'Poção de Cura', qty: 3, weight: '0.5 kg' }
+    { id: 1, name: 'Escudo de Aço', qty: 1, weight: '3.0 kg', desc: 'Concede +2 de defesa quando empunhado.' },
+    { id: 2, name: 'Poção de Cura', qty: 3, weight: '0.5 kg', desc: 'Recupera 2d4 + 2 de HP.' }
   ]);
+
+  // Anotações
   const [notes, setNotes] = useState('Nascido nas terras do norte, despertou a mutação elemental após sobreviver a um raio...');
 
-  // Funções Auxiliares
+  // Modais de Cadastro
+  const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
+  const [isAbilityModalOpen, setIsAbilityModalOpen] = useState(false);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+
+  // Modal de Resultado de Rolagem Flutuante (Centro)
+  const [activeRollResult, setActiveRollResult] = useState(null);
+
+  // Histórico de Rolagens (Canto Inferior Direito)
+  const [rollHistory, setRollHistory] = useState([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  // Formulários temporários dos Modais
+  const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
+  const [newAbility, setNewAbility] = useState({ name: '', tier: 'Simples (1-2x)', cost: 2, damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  const [newItem, setNewItem] = useState({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
+
+  // Funções de Cálculo
   const getMod = (val) => Math.floor((val - 10) / 2);
+
+  // Função Principal de Rolagem com Alerta Central
+  const triggerRoll = ({ label, diceRoll, mod = 0, isDamage = false, notation = '' }) => {
+    const total = diceRoll + mod;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const isCrit = !isDamage && diceRoll === 20;
+    const isFail = !isDamage && diceRoll === 1;
+
+    const rollData = {
+      id: Date.now(),
+      label,
+      diceRoll,
+      mod,
+      total,
+      time,
+      isCrit,
+      isFail,
+      isDamage,
+      notation
+    };
+
+    // Atualiza Histórico
+    setRollHistory((prev) => [rollData, ...prev]);
+
+    // Exibe Pop-up no Centro da Tela
+    setActiveRollResult(rollData);
+  };
 
   const rollD20 = (mod, label) => {
     const diceRoll = Math.floor(Math.random() * 20) + 1;
-    const total = diceRoll + mod;
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    setRollHistory((prev) => [
-      {
-        id: Date.now(),
-        label,
-        diceRoll,
-        mod,
-        total,
-        time,
-        isCrit: diceRoll === 20,
-        isFail: diceRoll === 1
-      },
-      ...prev
-    ]);
+    triggerRoll({ label, diceRoll, mod });
   };
 
   const rollDamage = (diceNotation, label) => {
-    // Exemplo simplificado de rolagem de dano
-    const parts = diceNotation.toLowerCase().split('d');
+    const parts = diceNotation.toLowerCase().replace(/\s+/g, '').split('+');
     let total = 0;
-    if (parts.length === 2) {
-      const count = parseInt(parts[0]) || 1;
-      const sides = parseInt(parts[1]) || 6;
+    
+    // Tratamento básico para notações do tipo XdX + Y
+    const dicePart = parts[0];
+    const bonus = parts[1] ? parseInt(parts[1]) || 0 : 0;
+
+    if (dicePart.includes('d')) {
+      const [count, sides] = dicePart.split('d').map(n => parseInt(n) || 1);
       for (let i = 0; i < count; i++) {
         total += Math.floor(Math.random() * sides) + 1;
       }
     } else {
-      total = parseInt(diceNotation) || 0;
+      total = parseInt(dicePart) || 0;
     }
 
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setRollHistory((prev) => [
-      {
-        id: Date.now(),
-        label: `Dano: ${label} (${diceNotation})`,
-        diceRoll: total,
-        mod: 0,
-        total,
-        time,
-        isCrit: false,
-        isFail: false
-      },
-      ...prev
-    ]);
+    triggerRoll({
+      label: `Dano: ${label}`,
+      diceRoll: total,
+      mod: bonus,
+      isDamage: true,
+      notation: diceNotation
+    });
   };
 
   const toggleSkillProf = (skillName) => {
@@ -141,32 +161,44 @@ export default function App() {
     );
   };
 
-  // Adicionar Arma
+  // Funções de Adição através de Modais
   const handleAddWeapon = () => {
     if (!newWeapon.name) return;
     setWeapons([...weapons, { ...newWeapon, id: Date.now() }]);
     setNewWeapon({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
+    setIsWeaponModalOpen(false);
   };
 
-  // Adicionar Habilidade
   const handleAddAbility = () => {
     if (!newAbility.name) return;
     setAbilities([...abilities, { ...newAbility, id: Date.now(), cost: Number(newAbility.cost) }]);
-    setNewAbility({ name: '', tier: 'Simples (1-2x)', cost: 2, area: '3m', dur: '2 turnos', desc: '' });
+    setNewAbility({ name: '', tier: 'Simples (1-2x)', cost: 2, damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+    setIsAbilityModalOpen(false);
   };
 
-  // Conjurar Habilidade
+  const handleAddItem = () => {
+    if (!newItem.name) return;
+    setInventory([...inventory, { ...newItem, id: Date.now(), qty: Number(newItem.qty) }]);
+    setNewItem({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
+    setIsItemModalOpen(false);
+  };
+
   const castAbility = (ability) => {
     if (energy.current >= ability.cost) {
       setEnergy((prev) => ({ ...prev, current: prev.current - ability.cost }));
-      rollD20(getMod(attributes.Poder), `Habilidade: ${ability.name}`);
+      if (ability.damage) {
+        rollDamage(ability.damage, `Habilidade: ${ability.name}`);
+      } else {
+        // Rola teste direto de Poder (Sem modificador negativo)
+        rollD20(attributes.Poder, `Habilidade: ${ability.name}`);
+      }
     } else {
-      alert('Energia insuficiente para usar esta habilidade!');
+      alert('Energia insuficiente para conjurar esta habilidade!');
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* CABEÇALHO DO PERSONAGEM */}
@@ -217,7 +249,6 @@ export default function App() {
                   value={charInfo.baseClass}
                   onChange={(e) => setCharInfo({ ...charInfo, baseClass: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500"
-                  placeholder="Ex: Brutamontes"
                 />
               </div>
             </div>
@@ -241,7 +272,6 @@ export default function App() {
                   value={charInfo.advClass}
                   onChange={(e) => setCharInfo({ ...charInfo, advClass: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500 md:text-right"
-                  placeholder="Ex: Colosso"
                 />
               </div>
             </div>
@@ -277,7 +307,6 @@ export default function App() {
                   style={{ width: `${Math.min(100, Math.max(0, (hp.current / hp.max) * 100))}%` }}
                 />
               </div>
-              {/* Botões Rápidos de HP */}
               <div className="flex justify-between gap-1 pt-1">
                 <button onClick={() => setHp(prev => ({ ...prev, current: prev.current - 10 }))} className="px-2 py-0.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-xs font-bold">-10</button>
                 <button onClick={() => setHp(prev => ({ ...prev, current: prev.current - 1 }))} className="px-2 py-0.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-xs font-bold">-1</button>
@@ -312,7 +341,6 @@ export default function App() {
                   style={{ width: `${Math.min(100, Math.max(0, (energy.current / energy.max) * 100))}%` }}
                 />
               </div>
-              {/* Botões Rápidos de Energia */}
               <div className="flex justify-between gap-1 pt-1">
                 <button onClick={() => setEnergy(prev => ({ ...prev, current: Math.max(0, prev.current - 10) }))} className="px-2 py-0.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-xs font-bold">-10</button>
                 <button onClick={() => setEnergy(prev => ({ ...prev, current: Math.max(0, prev.current - 1) }))} className="px-2 py-0.5 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 rounded text-xs font-bold">-1</button>
@@ -382,9 +410,10 @@ export default function App() {
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(attributes).map(([attr, val]) => {
-                  const mod = getMod(val);
-                  const modText = mod >= 0 ? `+${mod}` : mod;
                   const isPoder = attr === 'Poder';
+                  // Poder não tem modificador negativo/cálculo d20 padrão
+                  const mod = isPoder ? val : getMod(val);
+                  const modText = isPoder ? `${val}` : (mod >= 0 ? `+${mod}` : mod);
 
                   return (
                     <div 
@@ -403,12 +432,12 @@ export default function App() {
                         <input
                           type="number"
                           value={val}
-                          onChange={(e) => setAttributes({ ...attributes, [attr]: Number(e.target.value) })}
+                          onChange={(e) => setAttributes({ ...attributes, [attr]: Math.max(0, Number(e.target.value)) })}
                           className="w-10 text-xs bg-slate-900 text-slate-400 text-center rounded border border-slate-800"
                         />
                       </div>
                       <button
-                        onClick={() => rollD20(mod, `Atributo: ${attr}`)}
+                        onClick={() => rollD20(isPoder ? val : mod, `Atributo: ${attr}`)}
                         className={`mt-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded transition border ${
                           isPoder 
                             ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40' 
@@ -453,7 +482,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-amber-400 w-8 text-right">{modText}</span>
                         <button
-                          onClick={() => rollD20(totalSkillMod, skill.name)}
+                          onClick={() => rollD20(totalSkillMod, `Perícia: ${skill.name}`)}
                           className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded transition"
                           title={`Rolar ${skill.name}`}
                         >
@@ -472,50 +501,15 @@ export default function App() {
         {/* ABA COMBATE & ARMAS */}
         {activeTab === 'combate' && (
           <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
-            <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              <Swords className="w-5 h-5" /> Gestão de Armas & Ataques
-            </h2>
-
-            {/* Form de Nova Arma */}
-            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
-              <h3 className="text-sm font-bold text-slate-300">Cadastrar Nova Arma</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  placeholder="Nome da Arma"
-                  value={newWeapon.name}
-                  onChange={(e) => setNewWeapon({ ...newWeapon, name: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Dano Base (ex: 1d8)"
-                  value={newWeapon.dmg}
-                  onChange={(e) => setNewWeapon({ ...newWeapon, dmg: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-                <select
-                  value={newWeapon.attr}
-                  onChange={(e) => setNewWeapon({ ...newWeapon, attr: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                >
-                  <option value="Força">Força</option>
-                  <option value="Agilidade">Agilidade</option>
-                  <option value="Poder">Poder</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Propriedades"
-                  value={newWeapon.prop}
-                  onChange={(e) => setNewWeapon({ ...newWeapon, prop: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-              </div>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                <Swords className="w-5 h-5" /> Gestão de Armas & Ataques
+              </h2>
               <button
-                onClick={handleAddWeapon}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded text-sm transition"
+                onClick={() => setIsWeaponModalOpen(true)}
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition"
               >
-                + Adicionar Arma
+                <Plus className="w-4 h-4" /> Cadastrar Nova Arma
               </button>
             </div>
 
@@ -541,7 +535,7 @@ export default function App() {
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                       <button
-                        onClick={() => rollD20(attackMod, `Ataque: ${w.name}`)}
+                        onClick={() => rollD20(attackMod, `Ataque (${w.name})`)}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs py-1.5 px-3 rounded font-semibold transition"
                       >
                         <Crosshair className="w-3.5 h-3.5" /> Atacar (+{attackMod})
@@ -569,61 +563,15 @@ export default function App() {
         {/* ABA HABILIDADES & GRANDIOSIDADE */}
         {activeTab === 'habilidades' && (
           <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
-            <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" /> Habilidades e Poderes
-            </h2>
-
-            {/* Form de Nova Habilidade */}
-            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
-              <h3 className="text-sm font-bold text-slate-300">Cadastrar Nova Habilidade</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <input
-                  type="text"
-                  placeholder="Nome da Habilidade"
-                  value={newAbility.name}
-                  onChange={(e) => setNewAbility({ ...newAbility, name: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-                <select
-                  value={newAbility.tier}
-                  onChange={(e) => setNewAbility({ ...newAbility, tier: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                >
-                  <option>Simples (1-2x)</option>
-                  <option>Normal (3-5x)</option>
-                  <option>Grande (6-15x)</option>
-                  <option>Grandiosa (16-30x)</option>
-                  <option>Suprema (31-59x)</option>
-                  <option>Absoluta (60x+)</option>
-                  <option>Passiva (Reserva)</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="Custo de Energia"
-                  value={newAbility.cost}
-                  onChange={(e) => setNewAbility({ ...newAbility, cost: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Área / Duração"
-                  value={newAbility.area}
-                  onChange={(e) => setNewAbility({ ...newAbility, area: e.target.value })}
-                  className="bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Descrição e efeitos da habilidade..."
-                value={newAbility.desc}
-                onChange={(e) => setNewAbility({ ...newAbility, desc: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-              />
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                <Sparkles className="w-5 h-5" /> Habilidades e Poderes
+              </h2>
               <button
-                onClick={handleAddAbility}
-                className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded text-sm transition"
+                onClick={() => setIsAbilityModalOpen(true)}
+                className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition"
               >
-                + Registar Habilidade
+                <Plus className="w-4 h-4" /> Registrar Habilidade
               </button>
             </div>
 
@@ -640,7 +588,7 @@ export default function App() {
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{ability.desc}</p>
                     <p className="text-[10px] text-slate-500 mt-2">
-                      <strong>Alcance/Área:</strong> {ability.area} | <strong>Duração:</strong> {ability.dur}
+                      <strong>Dano/Efeito:</strong> {ability.damage || 'N/A'} | <strong>Área:</strong> {ability.area} | <strong>Duração:</strong> {ability.dur}
                     </p>
                   </div>
 
@@ -649,7 +597,7 @@ export default function App() {
                       onClick={() => castAbility(ability)}
                       className="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs py-1.5 rounded font-semibold transition"
                     >
-                      Conjurar / Usar
+                      Conjurar / Gastar Energia
                     </button>
                     <button
                       onClick={() => setAbilities(abilities.filter((item) => item.id !== ability.id))}
@@ -671,22 +619,41 @@ export default function App() {
               <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
                 <Backpack className="w-5 h-5" /> Inventário & Equipamentos
               </h2>
-              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded font-bold text-sm">
-                <span>💰 Peças de Ouro (PO):</span>
-                <input
-                  type="number"
-                  value={gold}
-                  onChange={(e) => setGold(Number(e.target.value))}
-                  className="w-16 bg-slate-900 text-center text-amber-300 border border-slate-800 rounded"
-                />
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded font-bold text-sm">
+                  <span>💰 PO:</span>
+                  <input
+                    type="number"
+                    value={gold}
+                    onChange={(e) => setGold(Number(e.target.value))}
+                    className="w-16 bg-slate-900 text-center text-amber-300 border border-slate-800 rounded"
+                  />
+                </div>
+                <button
+                  onClick={() => setIsItemModalOpen(true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
+                >
+                  <PackagePlus className="w-4 h-4" /> Adicionar Item
+                </button>
               </div>
             </div>
 
             <div className="space-y-2">
               {inventory.map((item) => (
                 <div key={item.id} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800 text-sm">
-                  <span className="font-medium text-slate-200">{item.name} (x{item.qty})</span>
-                  <span className="text-xs text-slate-500">{item.weight}</span>
+                  <div>
+                    <span className="font-medium text-slate-200">{item.name} (x{item.qty})</span>
+                    {item.desc && <p className="text-xs text-slate-500">{item.desc}</p>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500">{item.weight}</span>
+                    <button
+                      onClick={() => setInventory(inventory.filter((i) => i.id !== item.id))}
+                      className="text-slate-500 hover:text-rose-400 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -709,54 +676,319 @@ export default function App() {
           </section>
         )}
 
-        {/* HISTÓRICO DE ROLAGENS (SEMPRE VISÍVEL ABAIXO) */}
-        <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-            <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              <History className="w-5 h-5" /> Histórico de Rolagens
-            </h2>
-            {rollHistory.length > 0 && (
-              <button
-                onClick={() => setRollHistory([])}
-                className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 border border-rose-500/20 bg-rose-500/10 px-2 py-1 rounded"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Limpar Histórico
+      </div>
+
+      {/* POP-UP DE RESULTADO DA ROLAGEM NO CENTRO DA TELA */}
+      {activeRollResult && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-amber-500/60 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4 relative animate-in fade-in zoom-in">
+            <button
+              onClick={() => setActiveRollResult(null)}
+              className="absolute top-3 right-3 text-slate-400 hover:text-slate-100 p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              {activeRollResult.label}
+            </p>
+
+            <div className="my-2">
+              <span className={`text-6xl font-black ${
+                activeRollResult.isCrit ? 'text-emerald-400' : activeRollResult.isFail ? 'text-rose-500' : 'text-amber-400'
+              }`}>
+                {activeRollResult.total}
+              </span>
+            </div>
+
+            {activeRollResult.isCrit && (
+              <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">🎉 Acerto Crítico!</p>
+            )}
+            {activeRollResult.isFail && (
+              <p className="text-xs font-bold text-rose-500 uppercase tracking-wider">⚠️ Falha Crítica!</p>
+            )}
+
+            <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-400">
+              {activeRollResult.isDamage ? (
+                <span>Notação de Dano: <strong>{activeRollResult.notation}</strong></span>
+              ) : (
+                <span>Dado d20: <strong>{activeRollResult.diceRoll}</strong> {activeRollResult.mod >= 0 ? `+ ${activeRollResult.mod}` : `- ${Math.abs(activeRollResult.mod)}`} (Modificador)</span>
+              )}
+            </div>
+
+            <button
+              onClick={() => setActiveRollResult(null)}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* BOTÃO E HISTÓRICO FLUTUANTE NO CANTO INFERIOR DIREITO */}
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+        {isHistoryOpen && (
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-2xl w-80 max-h-80 overflow-y-auto space-y-2 mb-2">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+              <h3 className="text-xs font-bold text-amber-400 uppercase flex items-center gap-1">
+                <History className="w-3.5 h-3.5" /> Histórico de Testes
+              </h3>
+              <button onClick={() => setRollHistory([])} className="text-[10px] text-rose-400 hover:underline">
+                Limpar
               </button>
+            </div>
+            {rollHistory.length === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-2">Nenhum teste efetuado.</p>
+            ) : (
+              rollHistory.map((roll) => (
+                <div key={roll.id} className="bg-slate-950 p-2 rounded border border-slate-800 text-xs flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold text-slate-200">{roll.label}</p>
+                    <p className="text-[10px] text-slate-500">{roll.time}</p>
+                  </div>
+                  <span className={`font-bold text-sm ${
+                    roll.isCrit ? 'text-emerald-400' : roll.isFail ? 'text-rose-500' : 'text-amber-400'
+                  }`}>
+                    {roll.total}
+                  </span>
+                </div>
+              ))
             )}
           </div>
+        )}
 
-          {rollHistory.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-4">
-              Nenhuma rolagem efetuada. Clique em "Rolar", "Atacar" ou "Dano" em qualquer Atributo, Perícia, Arma ou Habilidade!
-            </p>
-          ) : (
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-              {rollHistory.map((roll) => (
-                <div key={roll.id} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800 text-sm">
-                  <div className="flex items-center gap-3">
-                    <Dices className={`w-5 h-5 ${roll.isCrit ? 'text-emerald-400' : roll.isFail ? 'text-rose-500' : 'text-amber-400'}`} />
-                    <div>
-                      <span className="font-semibold text-slate-200">{roll.label}</span>
-                      <span className="text-xs text-slate-500 ml-2">[{roll.time}]</span>
-                      <div className="text-xs text-slate-400">
-                        {roll.mod !== 0 ? `Dado (${roll.diceRoll}) ${roll.mod >= 0 ? `+ ${roll.mod}` : `- ${Math.abs(roll.mod)}`}` : `Resultado: ${roll.diceRoll}`}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-xl font-black ${roll.isCrit ? 'text-emerald-400' : roll.isFail ? 'text-rose-500' : 'text-amber-400'}`}>
-                      {roll.total}
-                    </span>
-                    {roll.isCrit && <span className="block text-[10px] text-emerald-400 font-bold uppercase">Acerto Crítico!</span>}
-                    {roll.isFail && <span className="block text-[10px] text-rose-500 font-bold uppercase">Falha Crítica!</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
+        <button
+          onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-sm transition"
+        >
+          <History className="w-4 h-4" /> Histórico ({rollHistory.length})
+        </button>
       </div>
+
+      {/* MODAL ADICIONAR ARMA */}
+      {isWeaponModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-amber-400">Cadastrar Nova Arma</h3>
+              <button onClick={() => setIsWeaponModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Nome da Arma</label>
+                <input
+                  type="text"
+                  value={newWeapon.name}
+                  onChange={(e) => setNewWeapon({ ...newWeapon, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Ex: Espada Longa"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Dano Base</label>
+                  <input
+                    type="text"
+                    value={newWeapon.dmg}
+                    onChange={(e) => setNewWeapon({ ...newWeapon, dmg: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                    placeholder="Ex: 1d8 + 2"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Atributo Utilizado</label>
+                  <select
+                    value={newWeapon.attr}
+                    onChange={(e) => setNewWeapon({ ...newWeapon, attr: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  >
+                    <option value="Força">Força</option>
+                    <option value="Agilidade">Agilidade (Destreza)</option>
+                    <option value="Inteligência">Inteligência (Intelecto)</option>
+                    <option value="Sabedoria">Sabedoria</option>
+                    <option value="Carisma">Carisma</option>
+                    <option value="Vitalidade">Vitalidade</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Propriedades</label>
+                <input
+                  type="text"
+                  value={newWeapon.prop}
+                  onChange={(e) => setNewWeapon({ ...newWeapon, prop: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Ex: Versátil, Leve"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAddWeapon}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              Salvar Arma
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR HABILIDADE */}
+      {isAbilityModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-amber-400">Registrar Habilidade</h3>
+              <button onClick={() => setIsAbilityModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Nome da Habilidade</label>
+                <input
+                  type="text"
+                  value={newAbility.name}
+                  onChange={(e) => setNewAbility({ ...newAbility, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Ex: Bola de Fogo"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Categoria/Grandiosidade</label>
+                  <select
+                    value={newAbility.tier}
+                    onChange={(e) => setNewAbility({ ...newAbility, tier: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  >
+                    <option>Simples (1-2x)</option>
+                    <option>Normal (3-5x)</option>
+                    <option>Grande (6-15x)</option>
+                    <option>Grandiosa (16-30x)</option>
+                    <option>Suprema (31-59x)</option>
+                    <option>Absoluta (60x+)</option>
+                    <option>Passiva</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Custo de Energia</label>
+                  <input
+                    type="number"
+                    value={newAbility.cost}
+                    onChange={(e) => setNewAbility({ ...newAbility, cost: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Dados de Dano/Efeito</label>
+                  <input
+                    type="text"
+                    value={newAbility.damage}
+                    onChange={(e) => setNewAbility({ ...newAbility, damage: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                    placeholder="Ex: 2d6 + 4"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Alcance / Área</label>
+                  <input
+                    type="text"
+                    value={newAbility.area}
+                    onChange={(e) => setNewAbility({ ...newAbility, area: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                    placeholder="Ex: 6m de Raio"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Descrição</label>
+                <textarea
+                  value={newAbility.desc}
+                  onChange={(e) => setNewAbility({ ...newAbility, desc: e.target.value })}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Efeitos da habilidade..."
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAddAbility}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              Salvar Habilidade
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR ITEM NO INVENTÁRIO */}
+      {isItemModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-amber-400">Adicionar Item ao Inventário</h3>
+              <button onClick={() => setIsItemModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Nome do Item</label>
+                <input
+                  type="text"
+                  value={newItem.name}
+                  onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Ex: Corda de Cânhamo"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Quantidade</label>
+                  <input
+                    type="number"
+                    value={newItem.qty}
+                    onChange={(e) => setNewItem({ ...newItem, qty: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Peso</label>
+                  <input
+                    type="text"
+                    value={newItem.weight}
+                    onChange={(e) => setNewItem({ ...newItem, weight: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                    placeholder="Ex: 1.0 kg"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Descrição / O que ele faz</label>
+                <textarea
+                  value={newItem.desc}
+                  onChange={(e) => setNewItem({ ...newItem, desc: e.target.value })}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                  placeholder="Detalhes ou propriedades do item..."
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAddItem}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              Adicionar ao Inventário
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
