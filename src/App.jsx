@@ -25,8 +25,15 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' }
 ];
 
-
-const ABILITY_ATTRIBUTES = ['Força', 'Agilidade', 'Vitalidade', 'Inteligência', 'Sabedoria', 'Carisma'];
+// As habilidades escolhem individualmente qual atributo utilizar.
+const ABILITY_ATTRIBUTES = [
+  'Força',
+  'Agilidade',
+  'Vitalidade',
+  'Inteligência',
+  'Sabedoria',
+  'Carisma'
+];
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
 
@@ -153,7 +160,10 @@ export default function App() {
 
   // Formulários temporários dos Modais
   const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
-  const [newAbility, setNewAbility] = useState({ name: '', tier: 'Simples (1-2x)', cost: 2, attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  const [newAbility, setNewAbility] = useState({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  const [abilityRollModal, setAbilityRollModal] = useState(null);
+  const [abilityRollTier, setAbilityRollTier] = useState('Simples');
+  const [abilityRollCost, setAbilityRollCost] = useState(2);
   const [newItem, setNewItem] = useState({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
 
   // Funções de Cálculo
@@ -195,7 +205,8 @@ export default function App() {
     const parts = diceNotation.toLowerCase().replace(/\s+/g, '').split('+');
     let total = 0;
     
-    // Tratamento básico para notações do tipo XdX + Y
+    // Tratamento básico para notações do tipo XdX + Y.
+    // extraMod é o modificador do atributo da classe (quando aplicável).
     const dicePart = parts[0];
     const bonus = (parts[1] ? parseInt(parts[1]) || 0 : 0) + extraMod;
 
@@ -233,8 +244,8 @@ export default function App() {
 
   const handleAddAbility = () => {
     if (!newAbility.name) return;
-    setAbilities([...abilities, { ...newAbility, id: Date.now(), cost: Number(newAbility.cost) }]);
-    setNewAbility({ name: '', tier: 'Simples (1-2x)', cost: 2, attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+    setAbilities([...abilities, { ...newAbility, id: Date.now() }]);
+    setNewAbility({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
     setIsAbilityModalOpen(false);
   };
 
@@ -246,117 +257,39 @@ export default function App() {
   };
 
   const castAbility = (ability) => {
-    const abilityAttribute = ability.attr || 'Força';
-    const attributeMod = getMod(Number(attributes[abilityAttribute] ?? 10));
-    const attackMod = attributeMod + Number(profBonus || 0);
-    const rollLabel = `Habilidade: ${ability.name} (${abilityAttribute})`;
-
-    if (energy.current >= ability.cost) {
-      setEnergy((prev) => ({ ...prev, current: prev.current - ability.cost }));
-      if (ability.damage) {
-        // Dano/efeito = dados da habilidade + modificador do atributo escolhido.
-        rollDamage(ability.damage, rollLabel, attributeMod);
-      } else {
-        // Teste/ataque = d20 + modificador do atributo escolhido + proficiência.
-        rollD20(attackMod, rollLabel);
-      }
-    } else {
-      alert('Energia insuficiente para conjurar esta habilidade!');
-    }
+    setAbilityRollTier('Simples');
+    setAbilityRollCost(2);
+    setAbilityRollModal(ability);
   };
 
-  const handleCharacterImage = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const confirmAbilityRoll = () => {
+    if (!abilityRollModal) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Escolha um arquivo de imagem.');
+    const ability = abilityRollModal;
+    const cost = Math.max(0, Number(abilityRollCost) || 0);
+    const abilityAttribute = ability.attr || 'Força';
+    const attributeMod = getMod(attributes[abilityAttribute] || 10);
+    const attackMod = attributeMod + profBonus;
+    const rollLabel = `Habilidade: ${ability.name} — ${abilityRollTier} (${abilityAttribute})`;
+
+    if (energy.current < cost) {
+      alert(`Energia insuficiente! Você precisa de ${cost} de Energia.`);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        // Reduz a imagem antes de salvar para evitar estourar o limite do localStorage.
-        const maxSize = 700;
-        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressed = canvas.toDataURL('image/jpeg', 0.78);
-        setCharacterImage(compressed);
-      };
-      img.onerror = () => alert('Não foi possível carregar essa imagem.');
-      img.src = reader.result;
-    };
-    reader.onerror = () => alert('Não foi possível ler essa imagem.');
-    reader.readAsDataURL(file);
+    setEnergy((prev) => ({ ...prev, current: prev.current - cost }));
 
-    // Permite escolher a mesma imagem novamente depois.
-    event.target.value = '';
+    if (ability.damage) {
+      // O modificador do atributo escolhido é somado ao resultado final do dano/efeito.
+      rollDamage(ability.damage, rollLabel, attributeMod);
+    } else {
+      // O teste/ataque usa modificador do atributo + proficiência.
+      rollD20(attackMod, rollLabel);
+    }
+
+    setAbilityRollModal(null);
   };
 
-  const removeCharacterImage = () => {
-    setCharacterImage('');
-  };
-
-  const resetCharacterSheet = () => {
-    const confirmed = window.confirm(
-      'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
-    );
-    if (!confirmed) return;
-
-    const fresh = {
-      charInfo: {
-        name: '',
-        level: 1,
-        mutation: '',
-        baseClass: '',
-        advClass: 'Nenhuma'
-      },
-      hp: { current: 10, max: 10 },
-      energy: { current: 15, max: 15 },
-      armorClass: 10,
-      profBonus: 2,
-      attributes: {
-        Força: 10,
-        Agilidade: 10,
-        Vitalidade: 10,
-        Inteligência: 10,
-        Sabedoria: 10,
-        Carisma: 10,
-        Poder: 5
-      },
-      proficientSkills: [],
-      weapons: [],
-      abilities: [],
-      gold: 10,
-      inventory: [],
-      notes: '',
-      characterImage: ''
-    };
-
-    setCharInfo(fresh.charInfo);
-    setHp(fresh.hp);
-    setEnergy(fresh.energy);
-    setArmorClass(fresh.armorClass);
-    setProfBonus(fresh.profBonus);
-    setAttributes(fresh.attributes);
-    setProficientSkills(fresh.proficientSkills);
-    setWeapons(fresh.weapons);
-    setAbilities(fresh.abilities);
-    setGold(fresh.gold);
-    setInventory(fresh.inventory);
-    setNotes(fresh.notes);
-    setCharacterImage(fresh.characterImage);
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-    setRollHistory([]);
-    setActiveRollResult(null);
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans relative">
@@ -451,7 +384,13 @@ export default function App() {
                   value={charInfo.baseClass}
                   onChange={(e) => setCharInfo({ ...charInfo, baseClass: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500"
+                  placeholder="Ex.: Espiritualista"
                 />
+                {getAbilityAttribute() && (
+                  <p className="text-[10px] text-cyan-400 mt-1">
+                    Habilidades usam: <strong>{getAbilityAttribute()}</strong>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -795,9 +734,6 @@ export default function App() {
                     <div className="flex justify-between items-start">
                       <h3 className="font-bold text-amber-300">{ability.name}</h3>
                       <div className="flex flex-wrap gap-1 justify-end">
-                        <span className="text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">
-                          {ability.tier} | {ability.cost} Energia
-                        </span>
                         <span className="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">
                           Atributo: {ability.attr || 'Força'}
                         </span>
@@ -1052,6 +988,66 @@ export default function App() {
         </div>
       )}
 
+      {/* MODAL USAR HABILIDADE */}
+      {abilityRollModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-cyan-500/30 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-cyan-300">Usar Habilidade</h3>
+                <p className="text-sm text-slate-400 mt-1">{abilityRollModal.name}</p>
+              </div>
+              <button onClick={() => setAbilityRollModal(null)} className="text-slate-400 hover:text-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Categoria da habilidade</label>
+                <select
+                  value={abilityRollTier}
+                  onChange={(e) => setAbilityRollTier(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                >
+                  <option>Simples</option>
+                  <option>Normal</option>
+                  <option>Grande</option>
+                  <option>Grandiosa</option>
+                  <option>Suprema</option>
+                  <option>Absoluta</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">A categoria é escolhida a cada uso da habilidade.</p>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Gasto de Energia nesta utilização</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={abilityRollCost}
+                  onChange={(e) => setAbilityRollCost(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                />
+              </div>
+
+              <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-400">
+                <div>Atributo: <strong className="text-amber-300">{abilityRollModal.attr || 'Força'}</strong></div>
+                <div className="mt-1">Modificador: <strong className="text-amber-300">{getMod(attributes[abilityRollModal.attr || 'Força'] || 10) >= 0 ? '+' : ''}{getMod(attributes[abilityRollModal.attr || 'Força'] || 10)}</strong></div>
+                {abilityRollModal.damage && <div className="mt-1">Dados: <strong className="text-slate-200">{abilityRollModal.damage}</strong> + modificador do atributo</div>}
+              </div>
+            </div>
+
+            <button
+              onClick={confirmAbilityRoll}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              Rolar Habilidade
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL ADICIONAR HABILIDADE */}
       {isAbilityModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1073,33 +1069,6 @@ export default function App() {
                   placeholder="Ex: Bola de Fogo"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Categoria/Grandiosidade</label>
-                  <select
-                    value={newAbility.tier}
-                    onChange={(e) => setNewAbility({ ...newAbility, tier: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                  >
-                    <option>Simples (1-2x)</option>
-                    <option>Normal (3-5x)</option>
-                    <option>Grande (6-15x)</option>
-                    <option>Grandiosa (16-30x)</option>
-                    <option>Suprema (31-59x)</option>
-                    <option>Absoluta (60x+)</option>
-                    <option>Passiva</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Custo de Energia</label>
-                  <input
-                    type="number"
-                    value={newAbility.cost}
-                    onChange={(e) => setNewAbility({ ...newAbility, cost: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
-                  />
-                </div>
-              </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Atributo utilizado pela habilidade</label>
                 <select
@@ -1111,7 +1080,9 @@ export default function App() {
                     <option key={attr} value={attr}>{attr}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1">O modificador deste atributo será usado no teste e somado ao dano/efeito.</p>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  O modificador deste atributo será usado no teste e somado ao dano/efeito da habilidade.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
