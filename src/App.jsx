@@ -68,13 +68,13 @@ export default function App() {
   ]);
 
   // Inventário
-  const [gold, setGold] = useState(45);
+  const [gold, setGold] = useState(10);
   const [inventory, setInventory] = useState([
     
   ]);
 
   // Anotações
-  const [notes, setNotes] = useState('Nascido nas terras do norte, despertou a mutação elemental após sobreviver a um raio...');
+  const [notes, setNotes] = useState('');
 
   // Modais de Cadastro
   const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
