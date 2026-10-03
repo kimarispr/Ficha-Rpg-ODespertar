@@ -33,15 +33,15 @@ export default function App() {
     name: '',
     level: 1,
     mutation: '',
-    baseClass: '10',
+    baseClass: '',
     advClass: 'Nenhuma'
   });
 
   // Status Vitais
-  const [hp, setHp] = useState({ current: 0, max: 0 });
-  const [energy, setEnergy] = useState({ current: 0, max: 0 });
-  const [armorClass, setArmorClass] = useState();
-  const [profBonus, setProfBonus] = useState();
+  const [hp, setHp] = useState({ current: 10, max: 10 });
+  const [energy, setEnergy] = useState({ current: 15, max: 15 });
+  const [armorClass, setArmorClass] = useState(10);
+  const [profBonus, setProfBonus] = useState(2);
 
   // Atributos
   const [attributes, setAttributes] = useState({
@@ -59,7 +59,7 @@ export default function App() {
 
   // Armas de Combate
   const [weapons, setWeapons] = useState([
-    
+   
   ]);
 
   // Habilidades
@@ -74,7 +74,7 @@ export default function App() {
   ]);
 
   // Anotações
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState('Nascido nas terras do norte, despertou a mutação elemental após sobreviver a um raio...');
 
   // Modais de Cadastro
   const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
