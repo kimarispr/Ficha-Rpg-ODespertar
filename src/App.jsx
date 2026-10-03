@@ -100,6 +100,9 @@ export default function App() {
   // Habilidades
   const [abilities, setAbilities] = useState(() => loadSavedState('abilities', []));
 
+  // Passivas e habilidades que não causam dano.
+  const [passives, setPassives] = useState(() => loadSavedState('passives', []));
+
   // Inventário
   const [gold, setGold] = useState(() => loadSavedState('gold', 10));
   const [inventory, setInventory] = useState(() => loadSavedState('inventory', []));
@@ -138,6 +141,7 @@ export default function App() {
         skillManualValues,
         weapons,
         abilities,
+        passives,
         gold,
         inventory,
         notes,
@@ -160,6 +164,7 @@ export default function App() {
     skillManualValues,
     weapons,
     abilities,
+    passives,
     gold,
     inventory,
     notes,
@@ -174,6 +179,7 @@ export default function App() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingWeaponId, setEditingWeaponId] = useState(null);
   const [editingAbilityId, setEditingAbilityId] = useState(null);
+  const [editingPassiveId, setEditingPassiveId] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
 
   // Modal de Resultado de Rolagem Flutuante (Centro)
@@ -186,6 +192,8 @@ export default function App() {
   // Formulários temporários dos Modais
   const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
   const [newAbility, setNewAbility] = useState({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  const [isPassiveModalOpen, setIsPassiveModalOpen] = useState(false);
+  const [newPassive, setNewPassive] = useState({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
   const [abilityRollModal, setAbilityRollModal] = useState(null);
   const [abilityRollTier, setAbilityRollTier] = useState('Simples');
   const [abilityRollCost, setAbilityRollCost] = useState(2);
@@ -324,6 +332,38 @@ export default function App() {
     setNewWeapon({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
   };
 
+  const handleAddPassive = () => {
+    if (!newPassive.name.trim()) return;
+    const passiveData = { ...newPassive };
+    if (editingPassiveId !== null) {
+      setPassives(prev => prev.map(item => item.id === editingPassiveId ? { ...item, ...passiveData } : item));
+    } else {
+      setPassives(prev => [...prev, { ...passiveData, id: Date.now() }]);
+    }
+    setNewPassive({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
+    setEditingPassiveId(null);
+    setIsPassiveModalOpen(false);
+  };
+
+  const openPassiveEditor = (passive) => {
+    setNewPassive({
+      name: passive.name || '',
+      type: passive.type || 'Passiva',
+      effect: passive.effect || '',
+      area: passive.area || 'Pessoal',
+      dur: passive.dur || 'Permanente',
+      desc: passive.desc || ''
+    });
+    setEditingPassiveId(passive.id);
+    setIsPassiveModalOpen(true);
+  };
+
+  const closePassiveModal = () => {
+    setIsPassiveModalOpen(false);
+    setEditingPassiveId(null);
+    setNewPassive({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
+  };
+
   const closeAbilityModal = () => {
     setIsAbilityModalOpen(false);
     setEditingAbilityId(null);
@@ -444,6 +484,7 @@ export default function App() {
       skillManualValues: {},
       weapons: [],
       abilities: [],
+      passives: [],
       gold: 10,
       inventory: [],
       notes: '',
@@ -463,6 +504,7 @@ export default function App() {
     setSkillManualValues(fresh.skillManualValues);
     setWeapons(fresh.weapons);
     setAbilities(fresh.abilities);
+    setPassives(fresh.passives);
     setGold(fresh.gold);
     setInventory(fresh.inventory);
     setNotes(fresh.notes);
@@ -1012,6 +1054,65 @@ export default function App() {
                 </div>
               ))}
             </div>
+
+            {/* SEÇÃO DE PASSIVAS E HABILIDADES SEM DANO */}
+            <div className="pt-5 border-t border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-cyan-300 flex items-center gap-2">
+                    <Shield className="w-5 h-5" /> Passivas e Habilidades sem Dano
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">Efeitos permanentes, utilidades e habilidades que não possuem rolagem de dano.</p>
+                </div>
+                <button
+                  onClick={() => setIsPassiveModalOpen(true)}
+                  className="bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition"
+                >
+                  <Plus className="w-4 h-4" /> Registrar Passiva / Habilidade
+                </button>
+              </div>
+
+              {passives.length === 0 ? (
+                <div className="border border-dashed border-slate-700 rounded-lg p-6 text-center text-sm text-slate-500">
+                  Nenhuma passiva ou habilidade sem dano registrada.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {passives.map((passive) => (
+                    <div key={passive.id} className="bg-slate-950 p-4 rounded-lg border border-cyan-900/50 space-y-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <h4 className="font-bold text-cyan-300">{passive.name}</h4>
+                            <span className="text-[10px] uppercase text-cyan-500">{passive.type || 'Passiva'}</span>
+                          </div>
+                        </div>
+                        {passive.desc && <p className="text-xs text-slate-400 mt-2">{passive.desc}</p>}
+                        {passive.effect && <p className="text-xs text-slate-300 mt-2"><strong>Efeito:</strong> {passive.effect}</p>}
+                        <p className="text-[10px] text-slate-500 mt-2">
+                          <strong>Área:</strong> {passive.area || 'Pessoal'} | <strong>Duração:</strong> {passive.dur || 'Permanente'}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t border-slate-900">
+                        <button
+                          onClick={() => openPassiveEditor(passive)}
+                          className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs py-1.5 rounded font-semibold transition flex items-center justify-center gap-1"
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Editar
+                        </button>
+                        <button
+                          onClick={() => setPassives(passives.filter((item) => item.id !== passive.id))}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 transition"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
         )}
 
@@ -1379,6 +1480,98 @@ export default function App() {
               className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
             >
               {editingAbilityId !== null ? 'Salvar Alterações' : 'Salvar Habilidade'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ADICIONAR PASSIVA / HABILIDADE SEM DANO */}
+      {isPassiveModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-cyan-300">{editingPassiveId !== null ? 'Editar Passiva / Habilidade' : 'Registrar Passiva / Habilidade sem Dano'}</h3>
+              <button onClick={closePassiveModal} className="text-slate-400 hover:text-slate-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Nome</label>
+                <input
+                  type="text"
+                  value={newPassive.name}
+                  onChange={(e) => setNewPassive({ ...newPassive, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                  placeholder="Ex: Visão Noturna"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Tipo</label>
+                <select
+                  value={newPassive.type}
+                  onChange={(e) => setNewPassive({ ...newPassive, type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                >
+                  <option>Passiva</option>
+                  <option>Habilidade sem dano</option>
+                  <option>Utilidade</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Efeito</label>
+                <textarea
+                  value={newPassive.effect}
+                  onChange={(e) => setNewPassive({ ...newPassive, effect: e.target.value })}
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                  placeholder="Ex: Recebe +2 em Percepção no escuro."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Área / Alcance</label>
+                  <input
+                    type="text"
+                    value={newPassive.area}
+                    onChange={(e) => setNewPassive({ ...newPassive, area: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                    placeholder="Pessoal"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Duração</label>
+                  <input
+                    type="text"
+                    value={newPassive.dur}
+                    onChange={(e) => setNewPassive({ ...newPassive, dur: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                    placeholder="Permanente"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Descrição / Observações</label>
+                <textarea
+                  value={newPassive.desc}
+                  onChange={(e) => setNewPassive({ ...newPassive, desc: e.target.value })}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
+                  placeholder="Detalhes adicionais..."
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddPassive}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
+            >
+              {editingPassiveId !== null ? 'Salvar Alterações' : 'Salvar Passiva / Habilidade'}
             </button>
           </div>
         </div>
