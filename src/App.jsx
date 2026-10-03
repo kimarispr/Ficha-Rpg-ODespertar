@@ -1005,4 +1005,38 @@ export default function App() {
 
     </div>
   );
+}function rolarTeste(nomeTeste, mod) {
+  // Rola um d20 (1 a 20)
+  const dado = Math.floor(Math.random() * 20) + 1;
+  const total = dado + mod;
+  const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  // Pega a lista do histórico
+  const historyList = document.getElementById('roll-log-list');
+
+  // Cria o elemento da rolagem
+  const logEntry = document.createElement('li');
+  logEntry.className = 'log-item';
+
+  // Verifica Sucesso ou Falha Crítica no dado nativo
+  if (dado === 20) {
+    logEntry.classList.add('critical-success');
+  } else if (dado === 1) {
+    logEntry.classList.add('critical-fail');
+  }
+
+  // Formata o texto do histórico
+  logEntry.innerHTML = `
+    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; opacity: 0.7;">
+      <span>${nomeTeste}</span>
+      <span>${hora}</span>
+    </div>
+    <div style="font-size: 1rem; margin-top: 4px;">
+      <strong>${total}</strong> 
+      <span style="font-size: 0.8rem; color: #aaa;">[d20: ${dado} ${mod >= 0 ? '+' : ''}${mod}]</span>
+    </div>
+  `;
+
+  // Adiciona a rolagem no topo da lista
+  historyList.prepend(logEntry);
 }

@@ -10,4 +10,28 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
-</html>
+</html><!-- Exemplo de Card de Perícia com Ícone de Dado -->
+<div class="skill-card">
+  <input type="checkbox" id="intutuicao" checked>
+  <div class="skill-info">
+    <label for="intutuicao" class="skill-name">Intuição</label>
+    <span class="skill-attr">SABEDORIA</span>
+  </div>
+  
+  <!-- Botão de Rolagem -->
+  <button class="roll-btn" onclick="rolarTeste('Intuição', 4)">
+    <span class="bonus-tag">+4</span>
+    <!-- Ícone de D20 em SVG -->
+    <svg class="dice-icon" viewBox="0 0 24 24" width="18" height="18">
+      <path fill="currentColor" d="M12 2L2 7l10 5l10-5l-10-5zm0 7.3L4.77 5.7L12 2.1l7.23 3.6L12 9.3zM2 9v8l10 5V12L2 9zm10 13l10-5V9l-10 3v10z"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Painel do Histórico de Rolagens -->
+<div class="roll-history-panel">
+  <h3>📜 Histórico de Rolagens</h3>
+  <ul id="roll-log-list" class="log-list">
+    <!-- As rolagens entrarão aqui dinamicamente -->
+  </ul>
+</div>
