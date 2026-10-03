@@ -394,6 +394,15 @@ export default function App() {
     setAbilityRollModal(ability);
   };
 
+  // Rolagem de acerto das habilidades, seguindo a mesma lógica das armas:
+  // 1d20 + modificador do atributo escolhido para a habilidade + proficiência.
+  const rollAbilityAttack = (ability) => {
+    const abilityAttribute = ability.attr || 'Força';
+    const attributeMod = getMod(attributes[abilityAttribute] || 10);
+    const attackMod = attributeMod + profBonus;
+    rollD20(attackMod, `Acerto da habilidade: ${ability.name} (${abilityAttribute})`);
+  };
+
   const confirmAbilityRoll = () => {
     if (!abilityRollModal) return;
 
@@ -1069,6 +1078,13 @@ export default function App() {
                   </div>
 
                   <div className="flex gap-2 pt-2 border-t border-slate-900">
+                    <button
+                      onClick={() => rollAbilityAttack(ability)}
+                      className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs py-1.5 rounded font-semibold transition flex items-center justify-center gap-1"
+                      title="Rola 1d20 + atributo + proficiência para verificar se a habilidade acerta"
+                    >
+                      <Crosshair className="w-3.5 h-3.5" /> Acertar
+                    </button>
                     <button
                       onClick={() => castAbility(ability)}
                       className="flex-1 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs py-1.5 rounded font-semibold transition"
