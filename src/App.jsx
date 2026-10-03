@@ -86,6 +86,17 @@ export default function App() {
   // Foto do personagem (salva localmente neste navegador como imagem comprimida).
   const [characterImage, setCharacterImage] = useState(() => loadSavedState('characterImage', ''));
 
+  // Poder é calculado automaticamente pelo nível: 5 no nível 1 e +5 por nível.
+  useEffect(() => {
+    const level = Math.max(1, Number(charInfo.level) || 1);
+    const powerByLevel = level * 5;
+
+    setAttributes(prev => {
+      if (prev.Poder === powerByLevel) return prev;
+      return { ...prev, Poder: powerByLevel };
+    });
+  }, [charInfo.level]);
+
   // Salva automaticamente a ficha neste navegador.
   // Os dados não são enviados para o servidor nem compartilhados com outros jogadores.
   useEffect(() => {
@@ -402,7 +413,7 @@ export default function App() {
                 <input
                   type="number"
                   value={charInfo.level}
-                  onChange={(e) => setCharInfo({ ...charInfo, level: Number(e.target.value) })}
+                  onChange={(e) => setCharInfo({ ...charInfo, level: Math.max(1, Number(e.target.value) || 1) })}
                   className="w-12 bg-slate-950 border border-slate-700 rounded text-center text-amber-400 font-bold"
                 />
               </div>
