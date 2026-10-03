@@ -234,6 +234,18 @@ export default function App() {
     triggerRoll({ label, diceRoll, mod });
   };
 
+  // Rolagens soltas de dados, sem modificadores.
+  const rollFreeDie = (sides) => {
+    const diceRoll = Math.floor(Math.random() * sides) + 1;
+    triggerRoll({
+      label: `Rolagem livre: 1d${sides}`,
+      diceRoll,
+      mod: 0,
+      isDamage: false,
+      notation: `1d${sides}`
+    });
+  };
+
   const rollDamage = (diceNotation, label, extraMod = 0) => {
     const parts = diceNotation.toLowerCase().replace(/\s+/g, '').split('+');
     let total = 0;
@@ -921,6 +933,32 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+            </section>
+
+            {/* ROLAGENS SOLTAS */}
+            <section className="md:col-span-3 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+                    <Dices className="w-5 h-5" /> Rolagens de Dados
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">Role um dado livremente, sem modificador ou vínculo com uma habilidade.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {[4, 6, 8, 12, 20].map((sides) => (
+                  <button
+                    key={sides}
+                    type="button"
+                    onClick={() => rollFreeDie(sides)}
+                    className="group bg-slate-950 border border-cyan-900/70 hover:border-cyan-500/70 hover:bg-cyan-950/30 rounded-xl p-4 transition flex flex-col items-center justify-center gap-2"
+                  >
+                    <Dices className="w-6 h-6 text-cyan-400 group-hover:scale-110 transition" />
+                    <span className="text-lg font-black text-slate-100">1d{sides}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Rolar</span>
+                  </button>
+                ))}
               </div>
             </section>
 
