@@ -291,6 +291,100 @@ export default function App() {
   };
 
 
+  const handleCharacterImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Escolha um arquivo de imagem.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Reduz a imagem antes de salvar para evitar estourar o limite do localStorage.
+        const maxSize = 700;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.78);
+        setCharacterImage(compressed);
+      };
+      img.onerror = () => alert('Não foi possível carregar essa imagem.');
+      img.src = reader.result;
+    };
+    reader.onerror = () => alert('Não foi possível ler essa imagem.');
+    reader.readAsDataURL(file);
+
+    // Permite escolher a mesma imagem novamente depois.
+    event.target.value = '';
+  };
+
+  const removeCharacterImage = () => {
+    setCharacterImage('');
+  };
+
+
+  const resetCharacterSheet = () => {
+    const confirmed = window.confirm(
+      'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
+    );
+    if (!confirmed) return;
+
+    const fresh = {
+      charInfo: {
+        name: '',
+        level: 1,
+        mutation: '',
+        baseClass: '',
+        advClass: 'Nenhuma'
+      },
+      hp: { current: 10, max: 10 },
+      energy: { current: 15, max: 15 },
+      armorClass: 10,
+      profBonus: 2,
+      attributes: {
+        Força: 10,
+        Agilidade: 10,
+        Vitalidade: 10,
+        Inteligência: 10,
+        Sabedoria: 10,
+        Carisma: 10,
+        Poder: 5
+      },
+      proficientSkills: [],
+      weapons: [],
+      abilities: [],
+      gold: 10,
+      inventory: [],
+      notes: '',
+      characterImage: ''
+    };
+
+    setCharInfo(fresh.charInfo);
+    setHp(fresh.hp);
+    setEnergy(fresh.energy);
+    setArmorClass(fresh.armorClass);
+    setProfBonus(fresh.profBonus);
+    setAttributes(fresh.attributes);
+    setProficientSkills(fresh.proficientSkills);
+    setWeapons(fresh.weapons);
+    setAbilities(fresh.abilities);
+    setGold(fresh.gold);
+    setInventory(fresh.inventory);
+    setNotes(fresh.notes);
+    setCharacterImage(fresh.characterImage);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    setRollHistory([]);
+    setActiveRollResult(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -386,11 +480,6 @@ export default function App() {
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500"
                   placeholder="Ex.: Espiritualista"
                 />
-                {getAbilityAttribute() && (
-                  <p className="text-[10px] text-cyan-400 mt-1">
-                    Habilidades usam: <strong>{getAbilityAttribute()}</strong>
-                  </p>
-                )}
               </div>
             </div>
 
