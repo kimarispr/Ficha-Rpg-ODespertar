@@ -83,6 +83,8 @@ export default function App() {
 
   // Anotações
   const [notes, setNotes] = useState(() => loadSavedState('notes', ''));
+  // Foto do personagem (salva localmente neste navegador como imagem comprimida).
+  const [characterImage, setCharacterImage] = useState(() => loadSavedState('characterImage', ''));
 
   // Salva automaticamente a ficha neste navegador.
   // Os dados não são enviados para o servidor nem compartilhados com outros jogadores.
@@ -100,7 +102,8 @@ export default function App() {
         abilities,
         gold,
         inventory,
-        notes
+        notes,
+        characterImage
       }));
     } catch (error) {
       console.warn('Não foi possível salvar a ficha localmente:', error);
@@ -117,7 +120,8 @@ export default function App() {
     abilities,
     gold,
     inventory,
-    notes
+    notes,
+    characterImage
   ]);
 
 
@@ -242,6 +246,44 @@ export default function App() {
     }
   };
 
+  const handleCharacterImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Escolha um arquivo de imagem.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Reduz a imagem antes de salvar para evitar estourar o limite do localStorage.
+        const maxSize = 700;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.78);
+        setCharacterImage(compressed);
+      };
+      img.onerror = () => alert('Não foi possível carregar essa imagem.');
+      img.src = reader.result;
+    };
+    reader.onerror = () => alert('Não foi possível ler essa imagem.');
+    reader.readAsDataURL(file);
+
+    // Permite escolher a mesma imagem novamente depois.
+    event.target.value = '';
+  };
+
+  const removeCharacterImage = () => {
+    setCharacterImage('');
+  };
+
   const resetCharacterSheet = () => {
     const confirmed = window.confirm(
       'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
@@ -274,7 +316,8 @@ export default function App() {
       abilities: [],
       gold: 10,
       inventory: [],
-      notes: ''
+      notes: '',
+      characterImage: ''
     };
 
     setCharInfo(fresh.charInfo);
@@ -289,6 +332,7 @@ export default function App() {
     setGold(fresh.gold);
     setInventory(fresh.inventory);
     setNotes(fresh.notes);
+    setCharacterImage(fresh.characterImage);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
     setRollHistory([]);
@@ -301,10 +345,51 @@ export default function App() {
 
         {/* CABEÇALHO DO PERSONAGEM */}
         <header className="bg-slate-900 border border-amber-500/30 p-6 rounded-xl shadow-lg space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             
+            {/* Foto do Personagem */}
+            <div className="flex items-center justify-center md:justify-start">
+              <div className="relative">
+                <label
+                  htmlFor="character-image-upload"
+                  className="w-28 h-28 md:w-32 md:h-32 rounded-xl border border-amber-500/40 bg-slate-950 overflow-hidden flex items-center justify-center cursor-pointer hover:border-amber-400 transition shadow-lg"
+                  title="Adicionar ou trocar foto do personagem"
+                >
+                  {characterImage ? (
+                    <img
+                      src={characterImage}
+                      alt="Retrato do personagem"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-500 px-2">
+                      <User size={34} className="mx-auto mb-1" />
+                      <span className="text-[10px] uppercase tracking-wide">Adicionar foto</span>
+                    </div>
+                  )}
+                </label>
+                <input
+                  id="character-image-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCharacterImage}
+                  className="hidden"
+                />
+                {characterImage && (
+                  <button
+                    type="button"
+                    onClick={removeCharacterImage}
+                    className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-rose-950 border border-rose-700 text-rose-300 hover:bg-rose-900 flex items-center justify-center"
+                    title="Remover foto"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Nome e Nível */}
-            <div className="space-y-1">
+            <div className="space-y-1 md:col-span-1">
               <input
                 type="text"
                 value={charInfo.name}
