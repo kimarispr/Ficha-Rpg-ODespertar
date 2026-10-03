@@ -30,52 +30,52 @@ export default function App() {
   
   // Perfil do Personagem & Mutação
   const [charInfo, setCharInfo] = useState({
-    name: 'Pango',
-    level: 5,
-    mutation: 'N',
-    baseClass: 'Espiritualista',
+    name: '',
+    level: 1,
+    mutation: '',
+    baseClass: '',
     advClass: 'Nenhuma'
   });
 
   // Status Vitais
-  const [hp, setHp] = useState({ current: 45, max: 45 });
-  const [energy, setEnergy] = useState({ current: 76, max: 78 });
-  const [armorClass, setArmorClass] = useState(12);
-  const [profBonus, setProfBonus] = useState(3);
+  const [hp, setHp] = useState({ current: 0, max: 0 });
+  const [energy, setEnergy] = useState({ current: 0, max: 0 });
+  const [armorClass, setArmorClass] = useState();
+  const [profBonus, setProfBonus] = useState();
 
   // Atributos
   const [attributes, setAttributes] = useState({
-    Força: 14,
-    Agilidade: 12,
-    Vitalidade: 15,
+    Força: 10,
+    Agilidade: 10,
+    Vitalidade: 10,
     Inteligência: 10,
-    Sabedoria: 13,
-    Carisma: 8,
+    Sabedoria: 10,
+    Carisma: 10,
     Poder: 5 // Poder não possui modificador negativo/fórmula tradicional
   });
 
   // Perícias Proficientes
-  const [proficientSkills, setProficientSkills] = useState(['Atletismo', 'Percepção']);
+  const [proficientSkills, setProficientSkills] = useState(['', '']);
 
   // Armas de Combate
   const [weapons, setWeapons] = useState([
-    { id: 1, name: 'Manoplas Salamandras de Magma', dmg: '3d8 + 9', attr: 'Força', prop: 'Nenhuma' }
+    { id: 1, name: '', dmg: '', attr: '', prop: '' }
   ]);
 
   // Habilidades
   const [abilities, setAbilities] = useState([
-    { id: 1, name: 'Dardo Elemental', tier: 'Simples (1-2x)', cost: 2, damage: '1d6 + 2', area: '3m', dur: 'Instantânea', desc: 'Dispara uma esfera de energia elemental pura.' }
+    { id: 1, name: '', tier: '', cost: 2, damage: '', area: '', dur: '', desc: '' }
   ]);
 
   // Inventário
   const [gold, setGold] = useState(45);
   const [inventory, setInventory] = useState([
-    { id: 1, name: 'Escudo de Aço', qty: 1, weight: '3.0 kg', desc: 'Concede +2 de defesa quando empunhado.' },
-    { id: 2, name: 'Poção de Cura', qty: 3, weight: '0.5 kg', desc: 'Recupera 2d4 + 2 de HP.' }
+    { id: 1, name: '', qty: 1, weight: '', desc: '' },
+    { id: 2, name: '', qty: 3, weight: '', desc: '' }
   ]);
 
   // Anotações
-  const [notes, setNotes] = useState('Nascido nas terras do norte, despertou a mutação elemental após sobreviver a um raio...');
+  const [notes, setNotes] = useState('');
 
   // Modais de Cadastro
   const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
