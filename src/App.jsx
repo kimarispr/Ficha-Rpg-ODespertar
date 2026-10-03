@@ -33,7 +33,7 @@ export default function App() {
     name: '',
     level: 1,
     mutation: '',
-    baseClass: '',
+    baseClass: '10',
     advClass: 'Nenhuma'
   });
 
@@ -59,19 +59,18 @@ export default function App() {
 
   // Armas de Combate
   const [weapons, setWeapons] = useState([
-    { id: 1, name: '', dmg: '', attr: '', prop: '' }
+    
   ]);
 
   // Habilidades
   const [abilities, setAbilities] = useState([
-    { id: 1, name: '', tier: '', cost: 2, damage: '', area: '', dur: '', desc: '' }
+    
   ]);
 
   // Inventário
   const [gold, setGold] = useState(45);
   const [inventory, setInventory] = useState([
-    { id: 1, name: '', qty: 1, weight: '', desc: '' },
-    { id: 2, name: '', qty: 3, weight: '', desc: '' }
+    
   ]);
 
   // Anotações
