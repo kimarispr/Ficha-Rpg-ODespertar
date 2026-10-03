@@ -25,18 +25,15 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' }
 ];
 
-// Atributo usado nas habilidades conforme a Classe de Poder.
-// Adicione aqui as demais classes do seu sistema conforme as regras do RPG.
-const CLASS_ABILITY_ATTRIBUTE = {
-  espiritualista: 'Inteligência'
-};
-
-const normalizeClassName = (name = '') =>
-  name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
+// As habilidades escolhem individualmente qual atributo utilizar.
+const ABILITY_ATTRIBUTES = [
+  'Força',
+  'Agilidade',
+  'Vitalidade',
+  'Inteligência',
+  'Sabedoria',
+  'Carisma'
+];
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
 
@@ -163,7 +160,7 @@ export default function App() {
 
   // Formulários temporários dos Modais
   const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
-  const [newAbility, setNewAbility] = useState({ name: '', tier: 'Simples (1-2x)', cost: 2, damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  const [newAbility, setNewAbility] = useState({ name: '', tier: 'Simples (1-2x)', cost: 2, attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
   const [newItem, setNewItem] = useState({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
 
   // Funções de Cálculo
@@ -245,7 +242,7 @@ export default function App() {
   const handleAddAbility = () => {
     if (!newAbility.name) return;
     setAbilities([...abilities, { ...newAbility, id: Date.now(), cost: Number(newAbility.cost) }]);
-    setNewAbility({ name: '', tier: 'Simples (1-2x)', cost: 2, damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+    setNewAbility({ name: '', tier: 'Simples (1-2x)', cost: 2, attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
     setIsAbilityModalOpen(false);
   };
 
@@ -256,129 +253,25 @@ export default function App() {
     setIsItemModalOpen(false);
   };
 
-  const getAbilityAttribute = () => {
-    const classKey = normalizeClassName(charInfo.baseClass);
-    return CLASS_ABILITY_ATTRIBUTE[classKey] || null;
-  };
-
   const castAbility = (ability) => {
-    const abilityAttribute = getAbilityAttribute();
-
-    if (!abilityAttribute) {
-      alert(`A classe "${charInfo.baseClass || 'não definida'}" ainda não possui um atributo de habilidade configurado.\n\nConfigure essa classe em CLASS_ABILITY_ATTRIBUTE no código.`);
-      return;
-    }
+    const abilityAttribute = ability.attr || 'Força';
+    const attributeMod = getMod(attributes[abilityAttribute] || 10);
+    const attackMod = attributeMod + profBonus;
+    const rollLabel = `Habilidade: ${ability.name} (${abilityAttribute})`;
 
     if (energy.current >= ability.cost) {
-      const attributeMod = getMod(attributes[abilityAttribute] || 10);
-      const attackMod = attributeMod + profBonus;
-      const rollLabel = `Habilidade: ${ability.name} (${abilityAttribute})`;
-
       setEnergy((prev) => ({ ...prev, current: prev.current - ability.cost }));
 
       if (ability.damage) {
-        // O atributo da classe soma no dano/cura da habilidade.
+        // O modificador do atributo escolhido é somado ao resultado final do dano/efeito.
         rollDamage(ability.damage, rollLabel, attributeMod);
       } else {
-        // Ataque/teste da habilidade usa o atributo da classe + proficiência.
+        // O teste/ataque da habilidade usa o modificador do atributo + proficiência.
         rollD20(attackMod, rollLabel);
       }
     } else {
       alert('Energia insuficiente para conjurar esta habilidade!');
     }
-  };
-
-  const handleCharacterImage = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert('Escolha um arquivo de imagem.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        // Reduz a imagem antes de salvar para evitar estourar o limite do localStorage.
-        const maxSize = 700;
-        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressed = canvas.toDataURL('image/jpeg', 0.78);
-        setCharacterImage(compressed);
-      };
-      img.onerror = () => alert('Não foi possível carregar essa imagem.');
-      img.src = reader.result;
-    };
-    reader.onerror = () => alert('Não foi possível ler essa imagem.');
-    reader.readAsDataURL(file);
-
-    // Permite escolher a mesma imagem novamente depois.
-    event.target.value = '';
-  };
-
-  const removeCharacterImage = () => {
-    setCharacterImage('');
-  };
-
-  const resetCharacterSheet = () => {
-    const confirmed = window.confirm(
-      'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
-    );
-    if (!confirmed) return;
-
-    const fresh = {
-      charInfo: {
-        name: '',
-        level: 1,
-        mutation: '',
-        baseClass: '',
-        advClass: 'Nenhuma'
-      },
-      hp: { current: 10, max: 10 },
-      energy: { current: 15, max: 15 },
-      armorClass: 10,
-      profBonus: 2,
-      attributes: {
-        Força: 10,
-        Agilidade: 10,
-        Vitalidade: 10,
-        Inteligência: 10,
-        Sabedoria: 10,
-        Carisma: 10,
-        Poder: 5
-      },
-      proficientSkills: [],
-      weapons: [],
-      abilities: [],
-      gold: 10,
-      inventory: [],
-      notes: '',
-      characterImage: ''
-    };
-
-    setCharInfo(fresh.charInfo);
-    setHp(fresh.hp);
-    setEnergy(fresh.energy);
-    setArmorClass(fresh.armorClass);
-    setProfBonus(fresh.profBonus);
-    setAttributes(fresh.attributes);
-    setProficientSkills(fresh.proficientSkills);
-    setWeapons(fresh.weapons);
-    setAbilities(fresh.abilities);
-    setGold(fresh.gold);
-    setInventory(fresh.inventory);
-    setNotes(fresh.notes);
-    setCharacterImage(fresh.characterImage);
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
-    setRollHistory([]);
-    setActiveRollResult(null);
   };
 
   return (
@@ -823,9 +716,14 @@ export default function App() {
                   <div>
                     <div className="flex justify-between items-start">
                       <h3 className="font-bold text-amber-300">{ability.name}</h3>
-                      <span className="text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">
-                        {ability.tier} | {ability.cost} Energia
-                      </span>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        <span className="text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded">
+                          {ability.tier} | {ability.cost} Energia
+                        </span>
+                        <span className="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">
+                          Atributo: {ability.attr || 'Força'}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{ability.desc}</p>
                     <p className="text-[10px] text-slate-500 mt-2">
@@ -1123,6 +1021,21 @@ export default function App() {
                     className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Atributo utilizado pela habilidade</label>
+                <select
+                  value={newAbility.attr}
+                  onChange={(e) => setNewAbility({ ...newAbility, attr: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-amber-500 outline-none"
+                >
+                  {ABILITY_ATTRIBUTES.map((attr) => (
+                    <option key={attr} value={attr}>{attr}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  O modificador deste atributo será usado no teste e somado ao dano/efeito da habilidade.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
