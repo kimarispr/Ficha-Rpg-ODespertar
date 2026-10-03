@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Dices, History, Trash2, Heart, Zap, Shield, User, BookOpen, 
-  Sparkles, Backpack, Scroll, Plus, Minus, Swords, Crosshair, X, PackagePlus
+  Sparkles, Backpack, Scroll, Plus, Minus, Swords, Crosshair, X, PackagePlus, Pencil
 } from 'lucide-react';
 
 const initialSkills = [
@@ -64,8 +64,17 @@ export default function App() {
   const [hp, setHp] = useState(() => loadSavedState('hp', { current: 10, max: 10 }));
   const [energy, setEnergy] = useState(() => loadSavedState('energy', { current: 15, max: 15 }));
   const [armorClass, setArmorClass] = useState(() => loadSavedState('armorClass', 10));
-  const [resistancePhysical, setResistancePhysical] = useState(() => loadSavedState('resistancePhysical', 0));
-  const [resistanceSpiritual, setResistanceSpiritual] = useState(() => loadSavedState('resistanceSpiritual', 0));
+  const loadResistance = (key) => {
+    const saved = loadSavedState(key, { current: 0, max: 0 });
+    if (saved && typeof saved === 'object') {
+      return { current: Number(saved.current) || 0, max: Number(saved.max) || 0 };
+    }
+    const value = Number(saved) || 0;
+    return { current: value, max: value };
+  };
+
+  const [resistancePhysical, setResistancePhysical] = useState(() => loadResistance('resistancePhysical'));
+  const [resistanceSpiritual, setResistanceSpiritual] = useState(() => loadResistance('resistanceSpiritual'));
   const [resistanceBonus, setResistanceBonus] = useState(() => loadSavedState('resistanceBonus', 0));
   const [profBonus, setProfBonus] = useState(() => loadSavedState('profBonus', 2));
 
@@ -82,6 +91,8 @@ export default function App() {
 
   // Perícias Proficientes
   const [proficientSkills, setProficientSkills] = useState(() => loadSavedState('proficientSkills', []));
+  // Valor manual das perícias. Quando definido, substitui o cálculo automático.
+  const [skillManualValues, setSkillManualValues] = useState(() => loadSavedState('skillManualValues', {}));
 
   // Armas de Combate
   const [weapons, setWeapons] = useState(() => loadSavedState('weapons', []));
@@ -124,6 +135,7 @@ export default function App() {
         profBonus,
         attributes,
         proficientSkills,
+        skillManualValues,
         weapons,
         abilities,
         gold,
@@ -145,6 +157,7 @@ export default function App() {
     profBonus,
     attributes,
     proficientSkills,
+    skillManualValues,
     weapons,
     abilities,
     gold,
@@ -159,6 +172,9 @@ export default function App() {
   const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
   const [isAbilityModalOpen, setIsAbilityModalOpen] = useState(false);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingWeaponId, setEditingWeaponId] = useState(null);
+  const [editingAbilityId, setEditingAbilityId] = useState(null);
+  const [editingItemId, setEditingItemId] = useState(null);
 
   // Modal de Resultado de Rolagem Flutuante (Centro)
   const [activeRollResult, setActiveRollResult] = useState(null);
@@ -243,26 +259,81 @@ export default function App() {
     );
   };
 
-  // Funções de Adição através de Modais
+  // Cadastro e edição de armas, habilidades e itens
   const handleAddWeapon = () => {
-    if (!newWeapon.name) return;
-    setWeapons([...weapons, { ...newWeapon, id: Date.now() }]);
+    if (!newWeapon.name.trim()) return;
+    if (editingWeaponId !== null) {
+      setWeapons(prev => prev.map(item => item.id === editingWeaponId ? { ...item, ...newWeapon } : item));
+    } else {
+      setWeapons(prev => [...prev, { ...newWeapon, id: Date.now() }]);
+    }
     setNewWeapon({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
+    setEditingWeaponId(null);
     setIsWeaponModalOpen(false);
   };
 
+  const openWeaponEditor = (weapon) => {
+    setNewWeapon({ name: weapon.name || '', dmg: weapon.dmg || '1d8', attr: weapon.attr || 'Força', prop: weapon.prop || '' });
+    setEditingWeaponId(weapon.id);
+    setIsWeaponModalOpen(true);
+  };
+
   const handleAddAbility = () => {
-    if (!newAbility.name) return;
-    setAbilities([...abilities, { ...newAbility, id: Date.now() }]);
+    if (!newAbility.name.trim()) return;
+    if (editingAbilityId !== null) {
+      setAbilities(prev => prev.map(item => item.id === editingAbilityId ? { ...item, ...newAbility } : item));
+    } else {
+      setAbilities(prev => [...prev, { ...newAbility, id: Date.now() }]);
+    }
     setNewAbility({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+    setEditingAbilityId(null);
     setIsAbilityModalOpen(false);
   };
 
+  const openAbilityEditor = (ability) => {
+    setNewAbility({
+      name: ability.name || '', attr: ability.attr || 'Força', damage: ability.damage || '',
+      area: ability.area || '3m', dur: ability.dur || 'Instantânea', desc: ability.desc || ''
+    });
+    setEditingAbilityId(ability.id);
+    setIsAbilityModalOpen(true);
+  };
+
   const handleAddItem = () => {
-    if (!newItem.name) return;
-    setInventory([...inventory, { ...newItem, id: Date.now(), qty: Number(newItem.qty) }]);
+    if (!newItem.name.trim()) return;
+    const itemData = { ...newItem, qty: Number(newItem.qty) || 0 };
+    if (editingItemId !== null) {
+      setInventory(prev => prev.map(item => item.id === editingItemId ? { ...item, ...itemData } : item));
+    } else {
+      setInventory(prev => [...prev, { ...itemData, id: Date.now() }]);
+    }
     setNewItem({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
+    setEditingItemId(null);
     setIsItemModalOpen(false);
+  };
+
+  const openItemEditor = (item) => {
+    setNewItem({ name: item.name || '', qty: Number(item.qty) || 0, weight: item.weight || '', desc: item.desc || '' });
+    setEditingItemId(item.id);
+    setIsItemModalOpen(true);
+  };
+
+  const closeWeaponModal = () => {
+    setIsWeaponModalOpen(false);
+    setEditingWeaponId(null);
+    setNewWeapon({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
+  };
+
+  const closeAbilityModal = () => {
+    setIsAbilityModalOpen(false);
+    setEditingAbilityId(null);
+    setNewAbility({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
+  };
+
+  const closeItemModal = () => {
+    setIsItemModalOpen(false);
+    setEditingItemId(null);
+    setNewItem({ name: '', qty: 1, weight: '0.5 kg', desc: '' });
   };
 
   const castAbility = (ability) => {
@@ -356,8 +427,8 @@ export default function App() {
       hp: { current: 10, max: 10 },
       energy: { current: 15, max: 15 },
       armorClass: 10,
-      resistancePhysical: 0,
-      resistanceSpiritual: 0,
+      resistancePhysical: { current: 0, max: 0 },
+      resistanceSpiritual: { current: 0, max: 0 },
       resistanceBonus: 0,
       profBonus: 2,
       attributes: {
@@ -370,6 +441,7 @@ export default function App() {
         Poder: 5
       },
       proficientSkills: [],
+      skillManualValues: {},
       weapons: [],
       abilities: [],
       gold: 10,
@@ -388,6 +460,7 @@ export default function App() {
     setProfBonus(fresh.profBonus);
     setAttributes(fresh.attributes);
     setProficientSkills(fresh.proficientSkills);
+    setSkillManualValues(fresh.skillManualValues);
     setWeapons(fresh.weapons);
     setAbilities(fresh.abilities);
     setGold(fresh.gold);
@@ -625,37 +698,44 @@ export default function App() {
 
             {/* RESISTÊNCIAS */}
             <div className="md:col-span-2 bg-slate-950 p-3 rounded-lg border border-violet-900/50">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-bold text-violet-400">Resistências</span>
-                <span className="text-[10px] uppercase tracking-wider text-slate-500">Bônus adicional</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">Vida da resistência</span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Física</label>
-                  <input
-                    type="number"
-                    value={resistancePhysical}
-                    onChange={(e) => setResistancePhysical(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-violet-300 font-bold focus:border-violet-500 outline-none"
-                  />
-                </div>
-                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Espiritual</label>
-                  <input
-                    type="number"
-                    value={resistanceSpiritual}
-                    onChange={(e) => setResistanceSpiritual(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-violet-300 font-bold focus:border-violet-500 outline-none"
-                  />
-                </div>
-                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Bônus</label>
-                  <input
-                    type="number"
-                    value={resistanceBonus}
-                    onChange={(e) => setResistanceBonus(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-emerald-300 font-bold focus:border-emerald-500 outline-none"
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { label: 'Física', state: resistancePhysical, setState: setResistancePhysical, accent: 'violet' },
+                  { label: 'Espiritual', state: resistanceSpiritual, setState: setResistanceSpiritual, accent: 'cyan' }
+                ].map((res) => {
+                  const max = Math.max(0, Number(res.state.max) || 0);
+                  const current = Math.min(max, Math.max(0, Number(res.state.current) || 0));
+                  const percent = max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0;
+                  return (
+                    <div key={res.label} className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[10px] uppercase font-bold text-slate-400">{res.label}</label>
+                        <span className="text-xs font-bold text-slate-300">{current} / {max}</span>
+                      </div>
+                      <div className="h-2 bg-slate-800 rounded-full overflow-hidden mb-2">
+                        <div className={`h-full transition-all ${res.accent === 'cyan' ? 'bg-cyan-500' : 'bg-violet-500'}`} style={{ width: `${percent}%` }} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] text-slate-500 block mb-1">Atual</label>
+                          <input type="number" min="0" value={res.state.current} onChange={(e) => res.setState(prev => ({ ...prev, current: Math.min(prev.max, Math.max(0, Number(e.target.value) || 0)) }))} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-sm font-bold text-slate-200 outline-none focus:border-violet-500" />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-500 block mb-1">Máximo</label>
+                          <input type="number" min="0" value={res.state.max} onChange={(e) => res.setState(prev => ({ ...prev, max: Number(e.target.value) || 0, current: Math.min(prev.current, Number(e.target.value) || 0) }))} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-sm font-bold text-violet-300 outline-none focus:border-violet-500" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-2">Bônus</label>
+                  <input type="number" value={resistanceBonus} onChange={(e) => setResistanceBonus(Number(e.target.value) || 0)} className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-2 text-center text-lg font-bold text-emerald-300 outline-none focus:border-emerald-500" />
+                  <p className="text-[9px] text-slate-500 mt-2 text-center">Bônus adicional das resistências</p>
                 </div>
               </div>
             </div>
@@ -694,7 +774,7 @@ export default function App() {
         {/* ABA GERAL & ATRIBUTOS */}
         {activeTab === 'geral' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* ATRIBUTOS */}
             <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
               <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -754,7 +834,9 @@ export default function App() {
                   const isProf = proficientSkills.includes(skill.name);
                   const attrVal = attributes[skill.attr] || 10;
                   const attrMod = getMod(attrVal);
-                  const totalSkillMod = attrMod + (isProf ? profBonus : 0);
+                  const calculatedSkillMod = attrMod + (isProf ? profBonus : 0);
+                  const hasManualValue = Object.prototype.hasOwnProperty.call(skillManualValues, skill.name);
+                  const totalSkillMod = hasManualValue ? Number(skillManualValues[skill.name]) || 0 : calculatedSkillMod;
                   const modText = totalSkillMod >= 0 ? `+${totalSkillMod}` : totalSkillMod;
 
                   return (
@@ -772,7 +854,20 @@ export default function App() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-amber-400 w-8 text-right">{modText}</span>
+                        <input
+                          type="number"
+                          value={totalSkillMod}
+                          onChange={(e) => setSkillManualValues(prev => ({ ...prev, [skill.name]: e.target.value }))}
+                          className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-1 text-center text-sm font-bold text-amber-400 focus:border-amber-500 outline-none"
+                          title="Valor manual da perícia"
+                        />
+                        {hasManualValue && (
+                          <button
+                            onClick={() => setSkillManualValues(prev => { const next = { ...prev }; delete next[skill.name]; return next; })}
+                            className="text-[10px] text-slate-500 hover:text-amber-400"
+                            title="Voltar ao valor automático"
+                          >↺</button>
+                        )}
                         <button
                           onClick={() => rollD20(totalSkillMod, `Perícia: ${skill.name}`)}
                           className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded transition"
@@ -839,6 +934,13 @@ export default function App() {
                         <Dices className="w-3.5 h-3.5" /> Dano ({w.dmg})
                       </button>
                       <button
+                        onClick={() => openWeaponEditor(w)}
+                        className="p-1.5 text-slate-500 hover:text-amber-400 transition"
+                        title="Editar arma"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => setWeapons(weapons.filter((item) => item.id !== w.id))}
                         className="p-1.5 text-slate-500 hover:text-rose-400 transition"
                       >
@@ -894,6 +996,13 @@ export default function App() {
                       Conjurar / Gastar Energia
                     </button>
                     <button
+                      onClick={() => openAbilityEditor(ability)}
+                      className="p-1 text-slate-500 hover:text-amber-400 transition"
+                      title="Editar habilidade"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => setAbilities(abilities.filter((item) => item.id !== ability.id))}
                       className="p-1 text-slate-500 hover:text-rose-400 transition"
                     >
@@ -941,6 +1050,13 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-500">{item.weight}</span>
+                    <button
+                      onClick={() => openItemEditor(item)}
+                      className="text-slate-500 hover:text-amber-400 transition"
+                      title="Editar item"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => setInventory(inventory.filter((i) => i.id !== item.id))}
                       className="text-slate-500 hover:text-rose-400 transition"
@@ -1065,8 +1181,8 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-amber-400">Cadastrar Nova Arma</h3>
-              <button onClick={() => setIsWeaponModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+              <h3 className="text-lg font-bold text-amber-400">{editingWeaponId !== null ? 'Editar Arma' : 'Cadastrar Nova Arma'}</h3>
+              <button onClick={closeWeaponModal} className="text-slate-400 hover:text-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1123,7 +1239,7 @@ export default function App() {
               onClick={handleAddWeapon}
               className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
             >
-              Salvar Arma
+              {editingWeaponId !== null ? 'Salvar Alterações' : 'Salvar Arma'}
             </button>
           </div>
         </div>
@@ -1194,8 +1310,8 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-amber-400">Registrar Habilidade</h3>
-              <button onClick={() => setIsAbilityModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+              <h3 className="text-lg font-bold text-amber-400">{editingAbilityId !== null ? 'Editar Habilidade' : 'Registrar Habilidade'}</h3>
+              <button onClick={closeAbilityModal} className="text-slate-400 hover:text-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1262,7 +1378,7 @@ export default function App() {
               onClick={handleAddAbility}
               className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
             >
-              Salvar Habilidade
+              {editingAbilityId !== null ? 'Salvar Alterações' : 'Salvar Habilidade'}
             </button>
           </div>
         </div>
@@ -1273,8 +1389,8 @@ export default function App() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-amber-400">Adicionar Item ao Inventário</h3>
-              <button onClick={() => setIsItemModalOpen(false)} className="text-slate-400 hover:text-slate-100">
+              <h3 className="text-lg font-bold text-amber-400">{editingItemId !== null ? 'Editar Item' : 'Adicionar Item ao Inventário'}</h3>
+              <button onClick={closeItemModal} className="text-slate-400 hover:text-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1325,7 +1441,7 @@ export default function App() {
               onClick={handleAddItem}
               className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-lg text-sm transition"
             >
-              Adicionar ao Inventário
+              {editingItemId !== null ? 'Salvar Alterações' : 'Adicionar ao Inventário'}
             </button>
           </div>
         </div>
