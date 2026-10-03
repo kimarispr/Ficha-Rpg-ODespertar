@@ -64,6 +64,9 @@ export default function App() {
   const [hp, setHp] = useState(() => loadSavedState('hp', { current: 10, max: 10 }));
   const [energy, setEnergy] = useState(() => loadSavedState('energy', { current: 15, max: 15 }));
   const [armorClass, setArmorClass] = useState(() => loadSavedState('armorClass', 10));
+  const [resistancePhysical, setResistancePhysical] = useState(() => loadSavedState('resistancePhysical', 0));
+  const [resistanceSpiritual, setResistanceSpiritual] = useState(() => loadSavedState('resistanceSpiritual', 0));
+  const [resistanceBonus, setResistanceBonus] = useState(() => loadSavedState('resistanceBonus', 0));
   const [profBonus, setProfBonus] = useState(() => loadSavedState('profBonus', 2));
 
   // Atributos
@@ -115,6 +118,9 @@ export default function App() {
         hp,
         energy,
         armorClass,
+        resistancePhysical,
+        resistanceSpiritual,
+        resistanceBonus,
         profBonus,
         attributes,
         proficientSkills,
@@ -133,6 +139,9 @@ export default function App() {
     hp,
     energy,
     armorClass,
+    resistancePhysical,
+    resistanceSpiritual,
+    resistanceBonus,
     profBonus,
     attributes,
     proficientSkills,
@@ -347,6 +356,9 @@ export default function App() {
       hp: { current: 10, max: 10 },
       energy: { current: 15, max: 15 },
       armorClass: 10,
+      resistancePhysical: 0,
+      resistanceSpiritual: 0,
+      resistanceBonus: 0,
       profBonus: 2,
       attributes: {
         Força: 10,
@@ -370,6 +382,9 @@ export default function App() {
     setHp(fresh.hp);
     setEnergy(fresh.energy);
     setArmorClass(fresh.armorClass);
+    setResistancePhysical(fresh.resistancePhysical);
+    setResistanceSpiritual(fresh.resistanceSpiritual);
+    setResistanceBonus(fresh.resistanceBonus);
     setProfBonus(fresh.profBonus);
     setAttributes(fresh.attributes);
     setProficientSkills(fresh.proficientSkills);
@@ -518,8 +533,8 @@ export default function App() {
             </button>
           </div>
 
-          {/* BARRAS DE STATUS VITAIS (HP, ENERGIA, CA) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-slate-800">
+          {/* BARRAS DE STATUS VITAIS + RESISTÊNCIAS */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 pt-3 border-t border-slate-800">
             
             {/* VIDA / HP */}
             <div className="bg-slate-950 p-3 rounded-lg border border-rose-900/50 flex flex-col justify-between space-y-2">
@@ -590,7 +605,7 @@ export default function App() {
             </div>
 
             {/* CLASSE DE ARMADURA (CA) */}
-            <div className="bg-slate-950 p-3 rounded-lg border border-amber-900/50 flex items-center justify-between">
+            <div className="bg-slate-950 p-3 rounded-lg border border-amber-900/50 flex items-center justify-between md:col-span-1">
               <div className="flex items-center gap-2 text-amber-400">
                 <Shield className="w-6 h-6" />
                 <div>
@@ -605,6 +620,43 @@ export default function App() {
                 <button onClick={() => setArmorClass(c => Math.max(0, c - 1))} className="p-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded border border-slate-700">
                   <Minus className="w-3 h-3" />
                 </button>
+              </div>
+            </div>
+
+            {/* RESISTÊNCIAS */}
+            <div className="md:col-span-2 bg-slate-950 p-3 rounded-lg border border-violet-900/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-violet-400">Resistências</span>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">Bônus adicional</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
+                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Física</label>
+                  <input
+                    type="number"
+                    value={resistancePhysical}
+                    onChange={(e) => setResistancePhysical(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-violet-300 font-bold focus:border-violet-500 outline-none"
+                  />
+                </div>
+                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
+                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Espiritual</label>
+                  <input
+                    type="number"
+                    value={resistanceSpiritual}
+                    onChange={(e) => setResistanceSpiritual(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-violet-300 font-bold focus:border-violet-500 outline-none"
+                  />
+                </div>
+                <div className="bg-slate-900 rounded-lg border border-slate-800 p-2">
+                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Bônus</label>
+                  <input
+                    type="number"
+                    value={resistanceBonus}
+                    onChange={(e) => setResistanceBonus(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center text-emerald-300 font-bold focus:border-emerald-500 outline-none"
+                  />
+                </div>
               </div>
             </div>
 
