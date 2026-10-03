@@ -25,15 +25,8 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' }
 ];
 
-// As habilidades escolhem individualmente qual atributo utilizar.
-const ABILITY_ATTRIBUTES = [
-  'Força',
-  'Agilidade',
-  'Vitalidade',
-  'Inteligência',
-  'Sabedoria',
-  'Carisma'
-];
+
+const ABILITY_ATTRIBUTES = ['Força', 'Agilidade', 'Vitalidade', 'Inteligência', 'Sabedoria', 'Carisma'];
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
 
@@ -202,8 +195,7 @@ export default function App() {
     const parts = diceNotation.toLowerCase().replace(/\s+/g, '').split('+');
     let total = 0;
     
-    // Tratamento básico para notações do tipo XdX + Y.
-    // extraMod é o modificador do atributo da classe (quando aplicável).
+    // Tratamento básico para notações do tipo XdX + Y
     const dicePart = parts[0];
     const bonus = (parts[1] ? parseInt(parts[1]) || 0 : 0) + extraMod;
 
@@ -255,23 +247,115 @@ export default function App() {
 
   const castAbility = (ability) => {
     const abilityAttribute = ability.attr || 'Força';
-    const attributeMod = getMod(attributes[abilityAttribute] || 10);
-    const attackMod = attributeMod + profBonus;
+    const attributeMod = getMod(Number(attributes[abilityAttribute] ?? 10));
+    const attackMod = attributeMod + Number(profBonus || 0);
     const rollLabel = `Habilidade: ${ability.name} (${abilityAttribute})`;
 
     if (energy.current >= ability.cost) {
       setEnergy((prev) => ({ ...prev, current: prev.current - ability.cost }));
-
       if (ability.damage) {
-        // O modificador do atributo escolhido é somado ao resultado final do dano/efeito.
+        // Dano/efeito = dados da habilidade + modificador do atributo escolhido.
         rollDamage(ability.damage, rollLabel, attributeMod);
       } else {
-        // O teste/ataque da habilidade usa o modificador do atributo + proficiência.
+        // Teste/ataque = d20 + modificador do atributo escolhido + proficiência.
         rollD20(attackMod, rollLabel);
       }
     } else {
       alert('Energia insuficiente para conjurar esta habilidade!');
     }
+  };
+
+  const handleCharacterImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Escolha um arquivo de imagem.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Reduz a imagem antes de salvar para evitar estourar o limite do localStorage.
+        const maxSize = 700;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.78);
+        setCharacterImage(compressed);
+      };
+      img.onerror = () => alert('Não foi possível carregar essa imagem.');
+      img.src = reader.result;
+    };
+    reader.onerror = () => alert('Não foi possível ler essa imagem.');
+    reader.readAsDataURL(file);
+
+    // Permite escolher a mesma imagem novamente depois.
+    event.target.value = '';
+  };
+
+  const removeCharacterImage = () => {
+    setCharacterImage('');
+  };
+
+  const resetCharacterSheet = () => {
+    const confirmed = window.confirm(
+      'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
+    );
+    if (!confirmed) return;
+
+    const fresh = {
+      charInfo: {
+        name: '',
+        level: 1,
+        mutation: '',
+        baseClass: '',
+        advClass: 'Nenhuma'
+      },
+      hp: { current: 10, max: 10 },
+      energy: { current: 15, max: 15 },
+      armorClass: 10,
+      profBonus: 2,
+      attributes: {
+        Força: 10,
+        Agilidade: 10,
+        Vitalidade: 10,
+        Inteligência: 10,
+        Sabedoria: 10,
+        Carisma: 10,
+        Poder: 5
+      },
+      proficientSkills: [],
+      weapons: [],
+      abilities: [],
+      gold: 10,
+      inventory: [],
+      notes: '',
+      characterImage: ''
+    };
+
+    setCharInfo(fresh.charInfo);
+    setHp(fresh.hp);
+    setEnergy(fresh.energy);
+    setArmorClass(fresh.armorClass);
+    setProfBonus(fresh.profBonus);
+    setAttributes(fresh.attributes);
+    setProficientSkills(fresh.proficientSkills);
+    setWeapons(fresh.weapons);
+    setAbilities(fresh.abilities);
+    setGold(fresh.gold);
+    setInventory(fresh.inventory);
+    setNotes(fresh.notes);
+    setCharacterImage(fresh.characterImage);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    setRollHistory([]);
+    setActiveRollResult(null);
   };
 
   return (
@@ -367,13 +451,7 @@ export default function App() {
                   value={charInfo.baseClass}
                   onChange={(e) => setCharInfo({ ...charInfo, baseClass: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 text-slate-200 p-1 rounded focus:border-amber-500"
-                  placeholder="Ex.: Espiritualista"
                 />
-                {getAbilityAttribute() && (
-                  <p className="text-[10px] text-cyan-400 mt-1">
-                    Habilidades usam: <strong>{getAbilityAttribute()}</strong>
-                  </p>
-                )}
               </div>
             </div>
 
@@ -1033,9 +1111,7 @@ export default function App() {
                     <option key={attr} value={attr}>{attr}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  O modificador deste atributo será usado no teste e somado ao dano/efeito da habilidade.
-                </p>
+                <p className="text-[10px] text-slate-500 mt-1">O modificador deste atributo será usado no teste e somado ao dano/efeito.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
