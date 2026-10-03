@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Dices, History, Trash2, Heart, Zap, Shield, User, BookOpen, 
   Sparkles, Backpack, Scroll, Plus, Minus, Swords, Crosshair, X, PackagePlus
@@ -25,26 +25,40 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' }
 ];
 
+
+const STORAGE_KEY = 'ficha-rpg-local-v1';
+
+const loadSavedState = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return fallback;
+    const data = JSON.parse(saved);
+    return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('geral');
   
   // Perfil do Personagem & Mutação
-  const [charInfo, setCharInfo] = useState({
+  const [charInfo, setCharInfo] = useState(() => loadSavedState('charInfo', {
     name: '',
     level: 1,
     mutation: '',
     baseClass: '',
     advClass: 'Nenhuma'
-  });
+  }));
 
   // Status Vitais
-  const [hp, setHp] = useState({ current: 10, max: 10 });
-  const [energy, setEnergy] = useState({ current: 15, max: 15 });
-  const [armorClass, setArmorClass] = useState(10);
-  const [profBonus, setProfBonus] = useState(2);
+  const [hp, setHp] = useState(() => loadSavedState('hp', { current: 10, max: 10 }));
+  const [energy, setEnergy] = useState(() => loadSavedState('energy', { current: 15, max: 15 }));
+  const [armorClass, setArmorClass] = useState(() => loadSavedState('armorClass', 10));
+  const [profBonus, setProfBonus] = useState(() => loadSavedState('profBonus', 2));
 
   // Atributos
-  const [attributes, setAttributes] = useState({
+  const [attributes, setAttributes] = useState(() => loadSavedState('attributes', {
     Força: 10,
     Agilidade: 10,
     Vitalidade: 10,
@@ -52,29 +66,61 @@ export default function App() {
     Sabedoria: 10,
     Carisma: 10,
     Poder: 5 // Poder não possui modificador negativo/fórmula tradicional
-  });
+  }));
 
   // Perícias Proficientes
-  const [proficientSkills, setProficientSkills] = useState(['', '']);
+  const [proficientSkills, setProficientSkills] = useState(() => loadSavedState('proficientSkills', []));
 
   // Armas de Combate
-  const [weapons, setWeapons] = useState([
-   
-  ]);
+  const [weapons, setWeapons] = useState(() => loadSavedState('weapons', []));
 
   // Habilidades
-  const [abilities, setAbilities] = useState([
-    
-  ]);
+  const [abilities, setAbilities] = useState(() => loadSavedState('abilities', []));
 
   // Inventário
-  const [gold, setGold] = useState(10);
-  const [inventory, setInventory] = useState([
-    
-  ]);
+  const [gold, setGold] = useState(() => loadSavedState('gold', 10));
+  const [inventory, setInventory] = useState(() => loadSavedState('inventory', []));
 
   // Anotações
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(() => loadSavedState('notes', ''));
+
+  // Salva automaticamente a ficha neste navegador.
+  // Os dados não são enviados para o servidor nem compartilhados com outros jogadores.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        charInfo,
+        hp,
+        energy,
+        armorClass,
+        profBonus,
+        attributes,
+        proficientSkills,
+        weapons,
+        abilities,
+        gold,
+        inventory,
+        notes
+      }));
+    } catch (error) {
+      console.warn('Não foi possível salvar a ficha localmente:', error);
+    }
+  }, [
+    charInfo,
+    hp,
+    energy,
+    armorClass,
+    profBonus,
+    attributes,
+    proficientSkills,
+    weapons,
+    abilities,
+    gold,
+    inventory,
+    notes
+  ]);
+
+
 
   // Modais de Cadastro
   const [isWeaponModalOpen, setIsWeaponModalOpen] = useState(false);
@@ -196,6 +242,59 @@ export default function App() {
     }
   };
 
+  const resetCharacterSheet = () => {
+    const confirmed = window.confirm(
+      'Isso apagará a ficha salva neste navegador e criará uma ficha nova. Continuar?'
+    );
+    if (!confirmed) return;
+
+    const fresh = {
+      charInfo: {
+        name: '',
+        level: 1,
+        mutation: '',
+        baseClass: '',
+        advClass: 'Nenhuma'
+      },
+      hp: { current: 10, max: 10 },
+      energy: { current: 15, max: 15 },
+      armorClass: 10,
+      profBonus: 2,
+      attributes: {
+        Força: 10,
+        Agilidade: 10,
+        Vitalidade: 10,
+        Inteligência: 10,
+        Sabedoria: 10,
+        Carisma: 10,
+        Poder: 5
+      },
+      proficientSkills: [],
+      weapons: [],
+      abilities: [],
+      gold: 10,
+      inventory: [],
+      notes: ''
+    };
+
+    setCharInfo(fresh.charInfo);
+    setHp(fresh.hp);
+    setEnergy(fresh.energy);
+    setArmorClass(fresh.armorClass);
+    setProfBonus(fresh.profBonus);
+    setAttributes(fresh.attributes);
+    setProficientSkills(fresh.proficientSkills);
+    setWeapons(fresh.weapons);
+    setAbilities(fresh.abilities);
+    setGold(fresh.gold);
+    setInventory(fresh.inventory);
+    setNotes(fresh.notes);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+    setRollHistory([]);
+    setActiveRollResult(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans relative">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -275,6 +374,16 @@ export default function App() {
               </div>
             </div>
 
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={resetCharacterSheet}
+              className="text-xs bg-slate-950 hover:bg-rose-950/50 text-slate-400 hover:text-rose-300 border border-slate-800 hover:border-rose-800 px-3 py-1.5 rounded-lg transition"
+              title="Apagar a ficha salva neste navegador"
+            >
+              Nova ficha / Limpar ficha
+            </button>
           </div>
 
           {/* BARRAS DE STATUS VITAIS (HP, ENERGIA, CA) */}
