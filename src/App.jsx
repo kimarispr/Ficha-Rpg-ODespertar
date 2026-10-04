@@ -851,50 +851,59 @@ export default function App() {
 
         {/* ABA GERAL & ATRIBUTOS */}
         {activeTab === 'geral' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-5">
 
-            {/* ATRIBUTOS */}
-            <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-                <User className="w-5 h-5" /> Atributos Base
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
+            {/* RESUMO DOS ATRIBUTOS */}
+            <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                    <User className="w-5 h-5" /> Atributos
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Valor e modificador de cada atributo.</p>
+                </div>
+                <span className="hidden sm:block text-[10px] uppercase tracking-wider text-slate-600">Clique em rolar para testar</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                 {Object.entries(attributes).map(([attr, val]) => {
                   const isPoder = attr === 'Poder';
-                  // Poder não tem modificador negativo/cálculo d20 padrão
                   const mod = isPoder ? val : getMod(val);
                   const modText = isPoder ? `${val}` : (mod >= 0 ? `+${mod}` : mod);
 
                   return (
-                    <div 
-                      key={attr} 
-                      className={`p-3 rounded-lg border text-center flex flex-col justify-between ${
-                        isPoder ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-slate-950 border-slate-800'
+                    <div
+                      key={attr}
+                      className={`rounded-lg border p-3 text-center ${
+                        isPoder
+                          ? 'bg-cyan-950/40 border-cyan-500/50'
+                          : 'bg-slate-950 border-slate-800'
                       }`}
                     >
-                      <span className={`text-xs uppercase font-bold ${isPoder ? 'text-cyan-400' : 'text-slate-400'}`}>
+                      <span className={`text-[10px] uppercase font-bold ${isPoder ? 'text-cyan-400' : 'text-slate-500'}`}>
                         {attr}
                       </span>
-                      <div className="my-1 flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1.5 mt-1.5">
                         <span className={`text-2xl font-black ${isPoder ? 'text-cyan-300' : 'text-amber-400'}`}>
                           {modText}
                         </span>
-                        <input
-                          type="number"
-                          value={val}
-                          onChange={(e) => setAttributes({ ...attributes, [attr]: Math.max(0, Number(e.target.value)) })}
-                          className="w-10 text-xs bg-slate-900 text-slate-400 text-center rounded border border-slate-800"
-                        />
                       </div>
+                      <input
+                        type="number"
+                        value={val}
+                        onChange={(e) => setAttributes({ ...attributes, [attr]: Math.max(0, Number(e.target.value)) })}
+                        className="w-full mt-2 bg-slate-900 border border-slate-800 rounded px-1 py-1 text-xs text-center text-slate-300 outline-none focus:border-amber-500"
+                        aria-label={`Valor de ${attr}`}
+                      />
                       <button
                         onClick={() => rollD20(isPoder ? val : mod, `Atributo: ${attr}`)}
-                        className={`mt-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded transition border ${
-                          isPoder 
-                            ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40' 
+                        className={`mt-2 w-full flex items-center justify-center gap-1 text-[10px] py-1 rounded border transition ${
+                          isPoder
+                            ? 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
                             : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
                         }`}
                       >
-                        <Dices className="w-3.5 h-3.5" /> Rolar
+                        <Dices className="w-3 h-3" /> Rolar
                       </button>
                     </div>
                   );
@@ -903,11 +912,18 @@ export default function App() {
             </section>
 
             {/* PERÍCIAS */}
-            <section className="md:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-                <BookOpen className="w-5 h-5" /> Perícias
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto pr-2">
+            <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 md:p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5" /> Perícias
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Marque proficiência ou ajuste o valor manualmente.</p>
+                </div>
+                <div className="text-[10px] text-slate-500">Proficiência: <span className="text-amber-400 font-bold">+{profBonus}</span></div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {initialSkills.map((skill) => {
                   const isProf = proficientSkills.includes(skill.name);
                   const attrVal = attributes[skill.attr] || 10;
@@ -918,26 +934,33 @@ export default function App() {
                   const modText = totalSkillMod >= 0 ? `+${totalSkillMod}` : totalSkillMod;
 
                   return (
-                    <div key={skill.name} className="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800 hover:border-slate-700 transition">
-                      <div className="flex items-center gap-2">
+                    <div
+                      key={skill.name}
+                      className={`flex items-center justify-between gap-2 rounded-lg border p-2.5 transition ${
+                        isProf ? 'bg-amber-950/20 border-amber-900/60' : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="min-w-0 flex items-center gap-2">
                         <input
                           type="checkbox"
                           checked={isProf}
                           onChange={() => toggleSkillProf(skill.name)}
-                          className="accent-amber-500 rounded cursor-pointer"
+                          className="accent-amber-500 rounded cursor-pointer shrink-0"
+                          title="Marcar como proficiente"
                         />
-                        <div>
-                          <p className="text-sm font-medium text-slate-200">{skill.name}</p>
-                          <p className="text-[10px] text-slate-500">{skill.attr}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-200 truncate">{skill.name}</p>
+                          <p className="text-[9px] text-slate-500">{skill.attr}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <input
                           type="number"
                           value={totalSkillMod}
                           onChange={(e) => setSkillManualValues(prev => ({ ...prev, [skill.name]: e.target.value }))}
-                          className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-1 text-center text-sm font-bold text-amber-400 focus:border-amber-500 outline-none"
-                          title="Valor manual da perícia"
+                          className="w-12 bg-slate-900 border border-slate-700 rounded px-1 py-1 text-center text-xs font-bold text-amber-400 focus:border-amber-500 outline-none"
+                          title={`Valor atual: ${modText}. Editar manualmente`}
                         />
                         {hasManualValue && (
                           <button
@@ -951,7 +974,7 @@ export default function App() {
                           className="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded transition"
                           title={`Rolar ${skill.name}`}
                         >
-                          <Dices className="w-4 h-4" />
+                          <Dices className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -960,102 +983,118 @@ export default function App() {
               </div>
             </section>
 
-            {/* TESTES DE MORRENDO */}
-            <section className="md:col-span-3 bg-slate-900 border border-rose-900/60 p-6 rounded-xl space-y-4">
-              <div className="flex justify-between items-center gap-3 flex-wrap">
-                <div>
-                  <h2 className="text-xl font-bold text-rose-400 flex items-center gap-2"><Heart className="w-5 h-5" /> Testes de Morrendo</h2>
-                  <p className="text-xs text-slate-500 mt-1">3 Sucessos: você sobrevive. 3 Fracassos: você morre.</p>
-                </div>
-                <button onClick={() => setDeathSaves({ successes: 0, failures: 0 })} className="text-xs px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-slate-300 hover:text-white">Resetar testes</button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-950 border border-emerald-900/60 rounded-xl p-4 text-center"><p className="text-xs uppercase font-bold text-emerald-400">Sucessos</p><p className="text-4xl font-black text-emerald-300 my-2">{deathSaves.successes}/3</p><div className="flex justify-center gap-2">{[0,1,2].map(i => <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.successes ? 'bg-emerald-400 border-emerald-300' : 'border-slate-600'}`} />)}</div><button onClick={() => setDeathSaves(prev => ({...prev, successes: Math.min(3, prev.successes + 1)}))} className="mt-3 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded">+ Sucesso</button></div>
-                <div className="bg-slate-950 border border-rose-900/60 rounded-xl p-4 text-center"><p className="text-xs uppercase font-bold text-rose-400">Fracassos</p><p className="text-4xl font-black text-rose-300 my-2">{deathSaves.failures}/3</p><div className="flex justify-center gap-2">{[0,1,2].map(i => <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.failures ? 'bg-rose-400 border-rose-300' : 'border-slate-600'}`} />)}</div><button onClick={() => setDeathSaves(prev => ({...prev, failures: Math.min(3, prev.failures + 1)}))} className="mt-3 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded">+ Fracasso</button></div>
-              </div>
-              {(deathSaves.successes >= 3 || deathSaves.failures >= 3) && <div className={`text-center font-black py-2 rounded ${deathSaves.successes >= 3 ? 'bg-emerald-950 text-emerald-300' : 'bg-rose-950 text-rose-300'}`}>{deathSaves.successes >= 3 ? '✓ SOBREVIVEU' : '☠ MORREU'}</div>}
-            </section>
+            {/* TESTES DE MORRENDO + ROLAGENS LIVRES */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-            {/* ROLAGENS SOLTAS */}
-            <section className="md:col-span-3 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
-                    <Dices className="w-5 h-5" /> Rolagens de Dados
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-1">Role um dado livremente, sem modificador ou vínculo com uma habilidade.</p>
-                </div>
-              </div>
-              <div className="bg-slate-950 border border-cyan-900/60 rounded-xl p-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* TESTES DE MORRENDO */}
+              <section className="bg-slate-900 border border-rose-900/60 rounded-xl p-4 md:p-5">
+                <div className="flex items-center justify-between gap-3 mb-4">
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Quantidade de dados</label>
-                    <input
-                      id="free-dice-count"
-                      type="number"
-                      min="1"
-                      max="100"
-                      defaultValue="1"
-                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
-                    />
+                    <h2 className="text-lg font-bold text-rose-400 flex items-center gap-2">
+                      <Heart className="w-5 h-5" /> Testes de Morrendo
+                    </h2>
+                    <p className="text-[10px] text-slate-500 mt-0.5">3 sucessos sobrevivem · 3 fracassos morrem</p>
+                  </div>
+                  <button
+                    onClick={() => setDeathSaves({ successes: 0, failures: 0 })}
+                    className="text-[10px] px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded text-slate-400 hover:text-white transition"
+                  >
+                    Resetar
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-950 border border-emerald-900/60 rounded-lg p-3 text-center">
+                    <p className="text-[10px] uppercase font-bold text-emerald-400">Sucessos</p>
+                    <div className="flex justify-center gap-1.5 my-2">
+                      {[0,1,2].map(i => (
+                        <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.successes ? 'bg-emerald-400 border-emerald-300' : 'border-slate-600'}`} />
+                      ))}
+                    </div>
+                    <p className="text-2xl font-black text-emerald-300">{deathSaves.successes}/3</p>
+                    <button
+                      onClick={() => setDeathSaves(prev => ({ ...prev, successes: Math.min(3, prev.successes + 1) }))}
+                      className="mt-2 w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded text-xs"
+                    >+ Sucesso</button>
+                  </div>
+
+                  <div className="bg-slate-950 border border-rose-900/60 rounded-lg p-3 text-center">
+                    <p className="text-[10px] uppercase font-bold text-rose-400">Fracassos</p>
+                    <div className="flex justify-center gap-1.5 my-2">
+                      {[0,1,2].map(i => (
+                        <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.failures ? 'bg-rose-400 border-rose-300' : 'border-slate-600'}`} />
+                      ))}
+                    </div>
+                    <p className="text-2xl font-black text-rose-300">{deathSaves.failures}/3</p>
+                    <button
+                      onClick={() => setDeathSaves(prev => ({ ...prev, failures: Math.min(3, prev.failures + 1) }))}
+                      className="mt-2 w-full px-2 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-xs"
+                    >+ Fracasso</button>
+                  </div>
+                </div>
+
+                {(deathSaves.successes >= 3 || deathSaves.failures >= 3) && (
+                  <div className={`mt-3 text-center font-black py-2 rounded ${deathSaves.successes >= 3 ? 'bg-emerald-950 text-emerald-300' : 'bg-rose-950 text-rose-300'}`}>
+                    {deathSaves.successes >= 3 ? '✓ SOBREVIVEU' : '☠ MORREU'}
+                  </div>
+                )}
+              </section>
+
+              {/* ROLAGENS LIVRES */}
+              <section className="bg-slate-900 border border-cyan-900/50 rounded-xl p-4 md:p-5">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
+                      <Dices className="w-5 h-5" /> Rolagens Livres
+                    </h2>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Quantidade + dado + bônus.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 block mb-1">Dados</label>
+                    <input id="free-dice-count" type="number" min="1" max="100" defaultValue="1" className="w-full bg-slate-950 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Tipo de dado</label>
-                    <select
-                      id="free-dice-sides"
-                      defaultValue="20"
-                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
-                    >
-                      {[4, 6, 8, 12, 20].map((sides) => (
-                        <option key={sides} value={sides}>d{sides}</option>
-                      ))}
+                    <label className="text-[10px] text-slate-500 block mb-1">Tipo</label>
+                    <select id="free-dice-sides" defaultValue="20" className="w-full bg-slate-950 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none">
+                      <option value="4">d4</option>
+                      <option value="6">d6</option>
+                      <option value="8">d8</option>
+                      <option value="12">d12</option>
+                      <option value="20">d20</option>
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Bônus / modificador</label>
-                    <input
-                      id="free-dice-bonus"
-                      type="number"
-                      step="1"
-                      defaultValue="0"
-                      className="w-full bg-slate-900 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
-                      placeholder="Ex: +3 ou -2"
-                    />
+                    <label className="text-[10px] text-slate-500 block mb-1">Bônus</label>
+                    <input id="free-dice-bonus" type="number" defaultValue="0" className="w-full bg-slate-950 border border-slate-700 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none" />
                   </div>
                 </div>
 
                 <button
-                  type="button"
                   onClick={() => {
-                    const count = document.getElementById('free-dice-count')?.value;
-                    const sides = document.getElementById('free-dice-sides')?.value;
-                    const bonus = document.getElementById('free-dice-bonus')?.value;
+                    const count = document.getElementById('free-dice-count')?.value || 1;
+                    const sides = document.getElementById('free-dice-sides')?.value || 20;
+                    const bonus = document.getElementById('free-dice-bonus')?.value || 0;
                     rollFreeDice(count, sides, bonus);
                   }}
-                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2"
+                  className="w-full mt-3 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  <Dices className="w-5 h-5" />
-                  Rolar Dados
+                  <Dices className="w-4 h-4" /> Rolar Dados
                 </button>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {[4, 6, 8, 12, 20].map((sides) => (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[4, 6, 8, 12, 20].map(sides => (
                     <button
                       key={sides}
-                      type="button"
-                      onClick={() => {
-                        const sidesInput = document.getElementById('free-dice-sides');
-                        if (sidesInput) sidesInput.value = String(sides);
-                      }}
-                      className="px-3 py-1.5 bg-slate-900 border border-slate-700 hover:border-cyan-500/60 rounded-lg text-xs font-bold text-slate-300 hover:text-cyan-300 transition"
-                    >
-                      d{sides}
-                    </button>
+                      onClick={() => rollFreeDice(1, sides, 0)}
+                      className="flex-1 min-w-[46px] px-2 py-1.5 bg-slate-950 hover:bg-cyan-950 border border-slate-700 hover:border-cyan-700 text-slate-300 hover:text-cyan-300 rounded text-xs font-bold transition"
+                    >d{sides}</button>
                   ))}
                 </div>
-              </div>
-            </section>
-
+              </section>
+            </div>
           </div>
         )}
 
