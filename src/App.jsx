@@ -109,6 +109,8 @@ export default function App() {
 
   // Anotações
   const [notes, setNotes] = useState(() => loadSavedState('notes', ''));
+  const [history, setHistory] = useState(() => loadSavedState('history', ''));
+  const [deathSaves, setDeathSaves] = useState(() => loadSavedState('deathSaves', { successes: 0, failures: 0 }));
   // Foto do personagem (salva localmente neste navegador como imagem comprimida).
   const [characterImage, setCharacterImage] = useState(() => loadSavedState('characterImage', ''));
 
@@ -145,6 +147,8 @@ export default function App() {
         gold,
         inventory,
         notes,
+        history,
+        deathSaves,
         characterImage
       }));
     } catch (error) {
@@ -168,6 +172,8 @@ export default function App() {
     gold,
     inventory,
     notes,
+    history,
+    deathSaves,
     characterImage
   ]);
 
@@ -193,7 +199,7 @@ export default function App() {
   const [newWeapon, setNewWeapon] = useState({ name: '', dmg: '1d8', attr: 'Força', prop: '' });
   const [newAbility, setNewAbility] = useState({ name: '', attr: 'Força', damage: '1d6', area: '3m', dur: 'Instantânea', desc: '' });
   const [isPassiveModalOpen, setIsPassiveModalOpen] = useState(false);
-  const [newPassive, setNewPassive] = useState({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
+  const [newPassive, setNewPassive] = useState({ name: '', type: 'Passiva', active: false, effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
   const [abilityRollModal, setAbilityRollModal] = useState(null);
   const [abilityRollTier, setAbilityRollTier] = useState('Simples');
   const [abilityRollCost, setAbilityRollCost] = useState(2);
@@ -203,7 +209,7 @@ export default function App() {
   const getMod = (val) => Math.floor((val - 10) / 2);
 
   // Função Principal de Rolagem com Alerta Central
-  const triggerRoll = ({ label, diceRoll, mod = 0, isDamage = false, notation = '' }) => {
+  const triggerRoll = ({ label, diceRoll, mod = 0, isDamage = false, notation = '', rolls = null }) => {
     const total = diceRoll + mod;
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const isCrit = !isDamage && diceRoll === 20;
@@ -219,7 +225,8 @@ export default function App() {
       isCrit,
       isFail,
       isDamage,
-      notation
+      notation,
+      rolls
     };
 
     // Atualiza Histórico
@@ -237,21 +244,15 @@ export default function App() {
   // Rolagem livre configurável: quantidade de dados + tipo de dado + bônus.
   const rollFreeDice = (count, sides, bonus = 0) => {
     const safeCount = Math.min(100, Math.max(1, Number(count) || 1));
-    const safeSides = Math.min(1000, Math.max(2, Number(sides) || 20));
+    const safeSides = [4, 6, 8, 12, 20].includes(Number(sides)) ? Number(sides) : 20;
     const safeBonus = Number(bonus) || 0;
-    let diceTotal = 0;
-
-    for (let i = 0; i < safeCount; i++) {
-      diceTotal += Math.floor(Math.random() * safeSides) + 1;
-    }
-
+    const rolls = Array.from({ length: safeCount }, () => Math.floor(Math.random() * safeSides) + 1);
+    const diceTotal = rolls.reduce((sum, value) => sum + value, 0);
     const bonusText = safeBonus === 0 ? '' : safeBonus > 0 ? ` + ${safeBonus}` : ` - ${Math.abs(safeBonus)}`;
     triggerRoll({
       label: `Rolagem livre: ${safeCount}d${safeSides}${bonusText}`,
-      diceRoll: diceTotal,
-      mod: safeBonus,
-      isDamage: false,
-      notation: `${safeCount}d${safeSides}${bonusText}`
+      diceRoll: diceTotal, mod: safeBonus, isDamage: false,
+      notation: `${safeCount}d${safeSides}${bonusText}`, rolls
     });
   };
 
@@ -355,13 +356,13 @@ export default function App() {
 
   const handleAddPassive = () => {
     if (!newPassive.name.trim()) return;
-    const passiveData = { ...newPassive };
+    const passiveData = { ...newPassive, active: newPassive.active ?? false };
     if (editingPassiveId !== null) {
       setPassives(prev => prev.map(item => item.id === editingPassiveId ? { ...item, ...passiveData } : item));
     } else {
       setPassives(prev => [...prev, { ...passiveData, id: Date.now() }]);
     }
-    setNewPassive({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
+    setNewPassive({ name: '', type: 'Passiva', active: false, effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
     setEditingPassiveId(null);
     setIsPassiveModalOpen(false);
   };
@@ -370,6 +371,7 @@ export default function App() {
     setNewPassive({
       name: passive.name || '',
       type: passive.type || 'Passiva',
+      active: !!passive.active,
       effect: passive.effect || '',
       area: passive.area || 'Pessoal',
       dur: passive.dur || 'Permanente',
@@ -382,7 +384,7 @@ export default function App() {
   const closePassiveModal = () => {
     setIsPassiveModalOpen(false);
     setEditingPassiveId(null);
-    setNewPassive({ name: '', type: 'Passiva', effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
+    setNewPassive({ name: '', type: 'Passiva', active: false, effect: '', area: 'Pessoal', dur: 'Permanente', desc: '' });
   };
 
   const closeAbilityModal = () => {
@@ -518,6 +520,8 @@ export default function App() {
       gold: 10,
       inventory: [],
       notes: '',
+      history: '',
+      deathSaves: { successes: 0, failures: 0 },
       characterImage: ''
     };
 
@@ -538,6 +542,8 @@ export default function App() {
     setGold(fresh.gold);
     setInventory(fresh.inventory);
     setNotes(fresh.notes);
+    setHistory(fresh.history);
+    setDeathSaves(fresh.deathSaves);
     setCharacterImage(fresh.characterImage);
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
@@ -954,6 +960,22 @@ export default function App() {
               </div>
             </section>
 
+            {/* TESTES DE MORRENDO */}
+            <section className="md:col-span-3 bg-slate-900 border border-rose-900/60 p-6 rounded-xl space-y-4">
+              <div className="flex justify-between items-center gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-xl font-bold text-rose-400 flex items-center gap-2"><Heart className="w-5 h-5" /> Testes de Morrendo</h2>
+                  <p className="text-xs text-slate-500 mt-1">3 Sucessos: você sobrevive. 3 Fracassos: você morre.</p>
+                </div>
+                <button onClick={() => setDeathSaves({ successes: 0, failures: 0 })} className="text-xs px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-slate-300 hover:text-white">Resetar testes</button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-950 border border-emerald-900/60 rounded-xl p-4 text-center"><p className="text-xs uppercase font-bold text-emerald-400">Sucessos</p><p className="text-4xl font-black text-emerald-300 my-2">{deathSaves.successes}/3</p><div className="flex justify-center gap-2">{[0,1,2].map(i => <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.successes ? 'bg-emerald-400 border-emerald-300' : 'border-slate-600'}`} />)}</div><button onClick={() => setDeathSaves(prev => ({...prev, successes: Math.min(3, prev.successes + 1)}))} className="mt-3 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded">+ Sucesso</button></div>
+                <div className="bg-slate-950 border border-rose-900/60 rounded-xl p-4 text-center"><p className="text-xs uppercase font-bold text-rose-400">Fracassos</p><p className="text-4xl font-black text-rose-300 my-2">{deathSaves.failures}/3</p><div className="flex justify-center gap-2">{[0,1,2].map(i => <span key={i} className={`w-4 h-4 rounded-full border ${i < deathSaves.failures ? 'bg-rose-400 border-rose-300' : 'border-slate-600'}`} />)}</div><button onClick={() => setDeathSaves(prev => ({...prev, failures: Math.min(3, prev.failures + 1)}))} className="mt-3 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded">+ Fracasso</button></div>
+              </div>
+              {(deathSaves.successes >= 3 || deathSaves.failures >= 3) && <div className={`text-center font-black py-2 rounded ${deathSaves.successes >= 3 ? 'bg-emerald-950 text-emerald-300' : 'bg-rose-950 text-rose-300'}`}>{deathSaves.successes >= 3 ? '✓ SOBREVIVEU' : '☠ MORREU'}</div>}
+            </section>
+
             {/* ROLAGENS SOLTAS */}
             <section className="md:col-span-3 bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1196,7 +1218,7 @@ export default function App() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {passives.map((passive) => (
-                    <div key={passive.id} className="bg-slate-950 p-4 rounded-lg border border-cyan-900/50 space-y-3 flex flex-col justify-between">
+                    <div key={passive.id} className={`p-4 rounded-lg border space-y-3 flex flex-col justify-between transition ${passive.active ? 'bg-emerald-950/50 border-emerald-500/70 shadow-lg shadow-emerald-900/20' : 'bg-slate-950 border-cyan-900/50'}`}>
                       <div>
                         <div className="flex justify-between items-start gap-2">
                           <div>
@@ -1210,7 +1232,11 @@ export default function App() {
                           <strong>Área:</strong> {passive.area || 'Pessoal'} | <strong>Duração:</strong> {passive.dur || 'Permanente'}
                         </p>
                       </div>
-                      <div className="flex gap-2 pt-2 border-t border-slate-900">
+                      <div className="flex gap-2 pt-2 border-t border-slate-900 items-center">
+                        <label className={`flex items-center gap-2 text-xs font-bold cursor-pointer px-2 py-1.5 rounded ${passive.active ? 'text-emerald-300 bg-emerald-500/10' : 'text-slate-400 bg-slate-900'}`}>
+                          <input type="checkbox" checked={!!passive.active} onChange={() => setPassives(prev => prev.map(item => item.id === passive.id ? { ...item, active: !item.active } : item))} className="accent-emerald-500 cursor-pointer" />
+                          {passive.active ? 'Ativa' : 'Inativa'}
+                        </label>
                         <button
                           onClick={() => openPassiveEditor(passive)}
                           className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs py-1.5 rounded font-semibold transition flex items-center justify-center gap-1"
@@ -1288,19 +1314,19 @@ export default function App() {
           </section>
         )}
 
-        {/* ABA ANOTAÇÕES */}
+        {/* ABA HISTÓRIA & ANOTAÇÕES */}
         {activeTab === 'anotacoes' && (
-          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-4">
-            <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
-              <Scroll className="w-5 h-5" /> História & Anotações da Campanha
-            </h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={8}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-200 text-sm focus:outline-none focus:border-amber-500/50"
-              placeholder="Escreva a história do seu personagem ou notas da aventura aqui..."
-            />
+          <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2"><Scroll className="w-5 h-5" /> História</h2>
+              <p className="text-xs text-slate-500 mt-1">A história do personagem e acontecimentos importantes da campanha.</p>
+              <textarea value={history} onChange={(e) => setHistory(e.target.value)} rows={12} className="w-full mt-3 bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-200 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Escreva aqui a história do personagem..." />
+            </div>
+            <div className="pt-5 border-t border-slate-800">
+              <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2"><BookOpen className="w-5 h-5" /> Anotações</h2>
+              <p className="text-xs text-slate-500 mt-1">Anotações rápidas, pistas, nomes, objetivos e informações da campanha.</p>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={12} className="w-full mt-3 bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50" placeholder="Escreva suas anotações aqui..." />
+            </div>
           </section>
         )}
 
@@ -1337,10 +1363,12 @@ export default function App() {
             )}
 
             <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-400">
-              {activeRollResult.isDamage ? (
-                <span>Notação de Dano: <strong>{activeRollResult.notation}</strong></span>
+              {activeRollResult.rolls ? (
+                <div className="space-y-1 text-left"><div>Dados: <strong className="text-slate-200">[{activeRollResult.rolls.join(', ')}]</strong></div><div>Soma dos dados: <strong className="text-slate-200">{activeRollResult.diceRoll}</strong></div><div>Bônus: <strong className="text-amber-300">{activeRollResult.mod >= 0 ? `+${activeRollResult.mod}` : activeRollResult.mod}</strong></div><div className="pt-1 border-t border-slate-800">Resultado final: <strong className="text-amber-300">{activeRollResult.total}</strong></div></div>
+              ) : activeRollResult.isDamage ? (
+                <span>Notação de Dano: <strong>{activeRollResult.notation}</strong> — Dados: <strong>{activeRollResult.diceRoll}</strong> | Bônus: <strong>{activeRollResult.mod >= 0 ? `+${activeRollResult.mod}` : activeRollResult.mod}</strong> | Final: <strong>{activeRollResult.total}</strong></span>
               ) : (
-                <span>Dado d20: <strong>{activeRollResult.diceRoll}</strong> {activeRollResult.mod >= 0 ? `+ ${activeRollResult.mod}` : `- ${Math.abs(activeRollResult.mod)}`} (Modificador)</span>
+                <span>Dado d20: <strong>{activeRollResult.diceRoll}</strong> {activeRollResult.mod >= 0 ? `+ ${activeRollResult.mod}` : `- ${Math.abs(activeRollResult.mod)}`} = <strong>{activeRollResult.total}</strong></span>
               )}
             </div>
 
@@ -1623,6 +1651,11 @@ export default function App() {
                   className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-slate-200 focus:border-cyan-500 outline-none"
                   placeholder="Ex: Visão Noturna"
                 />
+              </div>
+
+              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded p-2">
+                <input type="checkbox" checked={!!newPassive.active} onChange={(e) => setNewPassive({ ...newPassive, active: e.target.checked })} className="accent-emerald-500" />
+                <span className="text-xs font-bold text-emerald-300">Deixar ativa</span>
               </div>
 
               <div>
