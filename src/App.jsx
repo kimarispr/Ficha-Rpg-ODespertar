@@ -209,6 +209,11 @@ export default function App() {
   const [abilityRollBonus, setAbilityRollBonus] = useState(0);
   const [abilityRollCost, setAbilityRollCost] = useState(2);
 
+  // Estados para Rolagem Solta
+  const [quickRollQty, setQuickRollQty] = useState(1);
+  const [quickRollSides, setQuickRollSides] = useState(20);
+  const [quickRollBonus, setQuickRollBonus] = useState(0);
+
   useEffect(() => {
     const level = Math.max(1, Number(charInfo.level) || 1);
     const newPower = level * 5;
@@ -358,6 +363,28 @@ export default function App() {
       notation: `${count}d${sides}${
         bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`
       }`,
+      rolls,
+    });
+  };
+
+  const handleQuickRoll = () => {
+    const qty = Math.max(1, Number(quickRollQty) || 1);
+    const sides = Number(quickRollSides) || 20;
+    const bonus = Number(quickRollBonus) || 0;
+
+    const rolls = Array.from(
+      { length: qty },
+      () => Math.floor(Math.random() * sides) + 1
+    );
+
+    const diceTotal = rolls.reduce((sum, val) => sum + val, 0);
+
+    triggerRoll({
+      label: `Rolagem Solta`,
+      diceRoll: diceTotal,
+      mod: bonus,
+      isDamage: true, 
+      notation: `${qty}d${sides}${bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`}`,
       rolls,
     });
   };
@@ -1522,6 +1549,57 @@ export default function App() {
         {/* COMBATE */}
         {activeTab === 'combate' && (
           <div className="space-y-6">
+
+            {/* SEÇÃO DE ROLAGEM DE DADOS SOLTOS */}
+            <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
+                <Dices className="w-5 h-5" /> Rolagem de Dados Soltos
+              </h2>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="flex flex-col">
+                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Qtd.</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quickRollQty}
+                    onChange={(e) => setQuickRollQty(Number(e.target.value) || 1)}
+                    className="w-16 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none text-center"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Dado</label>
+                  <select
+                    value={quickRollSides}
+                    onChange={(e) => setQuickRollSides(Number(e.target.value))}
+                    className="w-24 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none"
+                  >
+                    <option value={4}>d4</option>
+                    <option value={6}>d6</option>
+                    <option value={8}>d8</option>
+                    <option value={10}>d10</option>
+                    <option value={12}>d12</option>
+                    <option value={20}>d20</option>
+                    <option value={100}>d100</option>
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Bônus</label>
+                  <input
+                    type="number"
+                    value={quickRollBonus}
+                    onChange={(e) => setQuickRollBonus(Number(e.target.value) || 0)}
+                    className="w-20 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none text-center"
+                  />
+                </div>
+                <button
+                  onClick={handleQuickRoll}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-2 rounded flex items-center gap-2"
+                >
+                  Rolar
+                </button>
+              </div>
+            </section>
+
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
