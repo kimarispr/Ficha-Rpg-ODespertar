@@ -175,6 +175,7 @@ export default function App() {
     dmg: '1d8',
     attr: 'Força',
     prop: '',
+    desc: '',
   });
 
   const [newAbility, setNewAbility] = useState({
@@ -383,7 +384,7 @@ export default function App() {
       label: `Rolagem Solta`,
       diceRoll: diceTotal,
       mod: bonus,
-      isDamage: true, 
+      isDamage: true,
       notation: `${qty}d${sides}${bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`}`,
       rolls,
     });
@@ -486,6 +487,7 @@ export default function App() {
       dmg: weapon.dmg || '1d8',
       attr: weapon.attr || 'Força',
       prop: weapon.prop || '',
+      desc: weapon.desc || '',
     });
 
     setEditingWeaponId(weapon.id);
@@ -509,6 +511,7 @@ export default function App() {
       dmg: '1d8',
       attr: 'Força',
       prop: '',
+      desc: '',
     });
   };
 
@@ -1661,6 +1664,12 @@ export default function App() {
                         </div>
                       </div>
 
+                      {weapon.desc && (
+                        <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                          {weapon.desc}
+                        </p>
+                      )}
+
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => rollWeaponAttack(weapon)}
@@ -1766,6 +1775,12 @@ export default function App() {
                         </div>
                       </div>
 
+                      {ability.desc && (
+                        <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                          {ability.desc}
+                        </p>
+                      )}
+
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => rollAbilityAttack(ability)}
@@ -1851,7 +1866,9 @@ export default function App() {
                       </p>
                     )}
                     {passive.desc && (
-                      <p className="text-xs text-slate-400">{passive.desc}</p>
+                      <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                        {passive.desc}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -1898,30 +1915,39 @@ export default function App() {
                 {inventory.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-slate-950 border border-slate-800 rounded p-3 flex justify-between items-center"
+                    className="bg-slate-950 border border-slate-800 rounded p-3"
                   >
-                    <div>
-                      <p className="font-semibold">
-                        {item.name}{' '}
-                        <span className="text-slate-500">x{item.qty}</span>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-semibold">
+                          {item.name}{' '}
+                          <span className="text-slate-500">x{item.qty}</span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => editItem(item)}
+                          className="text-slate-500 hover:text-amber-400"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            setInventory(
+                              inventory.filter((i) => i.id !== item.id)
+                            )
+                          }
+                          className="text-slate-500 hover:text-rose-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {item.desc && (
+                      <p className="text-xs text-slate-400 mt-2 border-t border-slate-800/80 pt-2">
+                        {item.desc}
                       </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => editItem(item)}
-                        className="text-slate-500 hover:text-amber-400"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          setInventory(inventory.filter((i) => i.id !== item.id))
-                        }
-                        className="text-slate-500 hover:text-rose-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2056,6 +2082,15 @@ export default function App() {
               placeholder="Dano: 1d8"
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
             />
+            <textarea
+              value={newWeapon.desc}
+              onChange={(e) =>
+                setNewWeapon({ ...newWeapon, desc: e.target.value })
+              }
+              placeholder="Descrição da arma (efeitos, alcance, história...)"
+              rows={3}
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
+            />
             <button
               onClick={saveWeapon}
               className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
@@ -2093,6 +2128,15 @@ export default function App() {
               }
               placeholder="Dano base (ex: 2d6 + 3)"
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <textarea
+              value={newAbility.desc}
+              onChange={(e) =>
+                setNewAbility({ ...newAbility, desc: e.target.value })
+              }
+              placeholder="Descrição da habilidade (efeitos adicionais, condições...)"
+              rows={3}
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
             <button
               onClick={saveAbility}
@@ -2216,7 +2260,7 @@ export default function App() {
               }
               placeholder="Descrição detalhada..."
               rows={3}
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
             <button
               onClick={savePassive}
@@ -2255,6 +2299,15 @@ export default function App() {
               }
               placeholder="Quantidade"
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <textarea
+              value={newItem.desc}
+              onChange={(e) =>
+                setNewItem({ ...newItem, desc: e.target.value })
+              }
+              placeholder="Descrição do item..."
+              rows={3}
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
             <button
               onClick={saveItem}
