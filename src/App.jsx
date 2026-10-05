@@ -16,6 +16,7 @@ import {
   X,
   PackagePlus,
   Pencil,
+  ShieldAlert,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
@@ -39,15 +40,6 @@ const initialSkills = [
   { name: 'Prestidigitação', attr: 'Agilidade' },
   { name: 'Religião', attr: 'Inteligência' },
   { name: 'Sobrevivência', attr: 'Sabedoria' },
-];
-
-const abilityAttributes = [
-  'Força',
-  'Agilidade',
-  'Vitalidade',
-  'Inteligência',
-  'Sabedoria',
-  'Carisma',
 ];
 
 const loadState = (key, fallback) => {
@@ -799,6 +791,7 @@ export default function App() {
   const tabs = [
     { id: 'geral', label: 'Geral & Atributos', icon: User },
     { id: 'combate', label: 'Combate & Habilidades', icon: Swords },
+    { id: 'passivas', label: 'Passivas & Buffs', icon: ShieldAlert },
     { id: 'inventario', label: 'Inventário & Itens', icon: Backpack },
     { id: 'anotacoes', label: 'História & Notas', icon: Scroll },
   ];
@@ -809,10 +802,7 @@ export default function App() {
 
         {/* CABEÇALHO */}
         <header className="bg-slate-900 border border-amber-500/30 p-6 rounded-xl shadow-lg space-y-5">
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-center">
-
-            {/* FOTO DO PERSONAGEM (Movida para o topo) */}
             <div className="flex flex-col items-center justify-center space-y-2">
               {characterImage ? (
                 <img
@@ -846,7 +836,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* NOME E NÍVEL */}
             <div className="space-y-2">
               <input
                 value={charInfo.name}
@@ -874,7 +863,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* MUTAÇÃO E CLASSE */}
             <div className="grid grid-cols-1 gap-2 text-xs">
               <div>
                 <label className="text-slate-400 block mb-1">Mutação</label>
@@ -906,7 +894,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* PROFICIÊNCIA E CLASSE AVANÇADA */}
             <div className="space-y-2">
               <div className="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
                 <span className="text-xs text-slate-400">Proficiência</span>
@@ -929,13 +916,9 @@ export default function App() {
                 />
               </div>
             </div>
-
           </div>
 
-          {/* BARRAS DE HP, ENERGIA E CA */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4">
-
-            {/* HP */}
             <div className="bg-slate-950 border border-rose-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-rose-400 font-bold">
                 <span className="flex gap-1 items-center">
@@ -1015,7 +998,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* ENERGIA */}
             <div className="bg-slate-950 border border-cyan-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-cyan-400 font-bold">
                 <span className="flex gap-1 items-center">
@@ -1101,7 +1083,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* CA */}
             <div className="bg-slate-950 border border-amber-900/50 rounded-lg p-4 flex justify-between items-center">
               <div className="flex items-center gap-2 text-amber-400">
                 <Shield className="w-7 h-7" />
@@ -1125,13 +1106,9 @@ export default function App() {
                 </button>
               </div>
             </div>
-
           </div>
 
-          {/* BARRAS DE RESISTÊNCIA FÍSICA E ESPIRITUAL (Estilizadas idênticas a HP/Energia) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4">
-
-            {/* RESISTÊNCIA FÍSICA (Amarela) */}
             <div className="bg-slate-950 border border-amber-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-amber-400 font-bold">
                 <span className="flex gap-1 items-center">
@@ -1229,7 +1206,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* RESISTÊNCIA ESPIRITUAL (Roxa) */}
             <div className="bg-slate-950 border border-purple-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-purple-400 font-bold">
                 <span className="flex gap-1 items-center">
@@ -1327,7 +1303,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* BÔNUS DE RESISTÊNCIA */}
             <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex flex-col justify-center space-y-2">
               <p className="text-xs text-slate-400">Bônus de Resistência</p>
               <input
@@ -1339,9 +1314,7 @@ export default function App() {
                 className="w-full bg-slate-900 rounded p-2 text-center text-amber-400 font-bold"
               />
             </div>
-
           </div>
-
         </header>
 
         {/* ABAS */}
@@ -1368,8 +1341,6 @@ export default function App() {
         {/* GERAL */}
         {activeTab === 'geral' && (
           <div className="space-y-6">
-
-            {/* ATRIBUTOS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400">
@@ -1432,7 +1403,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* PERÍCIAS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400">Perícias</h2>
@@ -1497,7 +1467,6 @@ export default function App() {
               </div>
             </section>
 
-            {/* SALVAMENTOS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <h2 className="text-xl font-bold text-amber-400 mb-4">
                 Testes de Morte
@@ -1547,15 +1516,12 @@ export default function App() {
                 </button>
               </div>
             </section>
-
           </div>
         )}
 
         {/* COMBATE */}
         {activeTab === 'combate' && (
           <div className="space-y-6">
-
-            {/* ARMAS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -1637,7 +1603,6 @@ export default function App() {
               )}
             </section>
 
-            {/* RECUPERAÇÃO DE ENERGIA */}
             <section className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
@@ -1664,11 +1629,10 @@ export default function App() {
               </div>
             </section>
 
-            {/* HABILIDADES */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" /> Habilidades
+                  <Sparkles className="w-5 h-5" /> Habilidades / Magias
                 </h2>
                 <button
                   onClick={() => {
@@ -1735,7 +1699,7 @@ export default function App() {
                           onClick={() => castAbility(ability)}
                           className="bg-cyan-600 text-slate-950 font-bold py-2 rounded text-xs"
                         >
-                          Usar Habilidade
+                          Usar / Rolar Dano
                         </button>
                       </div>
                     </div>
@@ -1743,8 +1707,79 @@ export default function App() {
                 </div>
               )}
             </section>
-
           </div>
+        )}
+
+        {/* PASSIVAS & BUFFS */}
+        {activeTab === 'passivas' && (
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" /> Passivas e Buffs
+              </h2>
+              <button
+                onClick={() => {
+                  setEditingPassiveId(null);
+                  setIsPassiveModalOpen(true);
+                }}
+                className="bg-amber-500 text-slate-950 font-bold px-3 py-2 rounded text-sm flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Adicionar Passiva/Buff
+              </button>
+            </div>
+
+            {passives.length === 0 ? (
+              <div className="text-center text-sm text-slate-500 border border-dashed border-slate-700 rounded-lg p-8">
+                Nenhuma passiva ou buff cadastrado.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {passives.map((passive) => (
+                  <div
+                    key={passive.id}
+                    className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">
+                          {passive.type}
+                        </span>
+                        <h3 className="font-bold text-amber-300 mt-1">
+                          {passive.name}
+                        </h3>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => editPassive(passive)}
+                          className="text-slate-500 hover:text-amber-400"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            setPassives(
+                              passives.filter((p) => p.id !== passive.id)
+                            )
+                          }
+                          className="text-slate-500 hover:text-rose-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {passive.effect && (
+                      <p className="text-xs text-cyan-300">
+                        Efeito: {passive.effect}
+                      </p>
+                    )}
+                    {passive.desc && (
+                      <p className="text-xs text-slate-400">{passive.desc}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
         {/* INVENTÁRIO */}
@@ -1831,6 +1866,20 @@ export default function App() {
                 placeholder="Escreva a história do personagem..."
               />
             </section>
+
+            <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
+                <Scroll className="w-5 h-5" /> Anotações Gerais
+              </h2>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={6}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 outline-none"
+                placeholder="Anotações de campanha, pistas e lembretes..."
+              />
+            </section>
+
             <button
               onClick={resetSheet}
               className="bg-rose-950 border border-rose-800 text-rose-300 px-4 py-2 rounded text-sm"
@@ -1871,7 +1920,7 @@ export default function App() {
       {/* HISTÓRICO FLUTUANTE */}
       <div className="fixed bottom-4 right-4 z-40">
         {isHistoryOpen && (
-          <div className="absolute bottom-14 right-0 bg-slate-900 border border-slate-800 rounded-xl p-4 w-80 max-h-80 overflow-y-auto">
+          <div className="absolute bottom-14 right-0 bg-slate-900 border border-slate-800 rounded-xl p-4 w-80 max-h-80 overflow-y-auto shadow-2xl">
             <div className="flex justify-between border-b border-slate-800 pb-2 mb-2">
               <h3 className="text-xs font-bold text-amber-400">Histórico</h3>
               <button
@@ -1906,7 +1955,7 @@ export default function App() {
       {/* MODAL DE ARMA */}
       {isWeaponModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex justify-between">
               <h3 className="text-lg font-bold text-amber-400">Cadastrar Arma</h3>
               <button onClick={closeWeaponModal}>
@@ -1939,21 +1988,201 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE USO DA HABILIDADE */}
+      {/* MODAL DE HABILIDADE / CADASTRO */}
+      {isAbilityModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex justify-between">
+              <h3 className="text-lg font-bold text-cyan-300">
+                Cadastrar Habilidade
+              </h3>
+              <button onClick={closeAbilityModal}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <input
+              value={newAbility.name}
+              onChange={(e) =>
+                setNewAbility({ ...newAbility, name: e.target.value })
+              }
+              placeholder="Nome da habilidade"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <input
+              value={newAbility.damage}
+              onChange={(e) =>
+                setNewAbility({ ...newAbility, damage: e.target.value })
+              }
+              placeholder="Dano base (ex: 2d6 + 3)"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <button
+              onClick={saveAbility}
+              className="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded"
+            >
+              Salvar Habilidade
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE USO DA HABILIDADE / GASTO DE ENERGIA E ROLAGEM CUSTOMIZADA */}
       {abilityRollModal && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-            <div className="flex justify-between">
-              <h3 className="text-xl font-bold text-cyan-300">Usar Habilidade</h3>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-cyan-300">
+                  {abilityRollModal.name}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Configure o lançamento e consumo de energia
+                </p>
+              </div>
               <button onClick={() => setAbilityRollModal(null)}>
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Custo de Energia
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={abilityRollCost}
+                  onChange={(e) =>
+                    setAbilityRollCost(Number(e.target.value) || 0)
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-cyan-300 font-bold"
+                />
+              </div>
+
+              {abilityRollModal.damage && (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Dados de Dano Personalizado (ex: 3d6, 1d12)
+                    </label>
+                    <input
+                      type="text"
+                      value={abilityRollDamage}
+                      onChange={(e) =>
+                        setAbilityRollDamage(e.target.value)
+                      }
+                      className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Bônus Fixo (+/-)
+                    </label>
+                    <input
+                      type="number"
+                      value={abilityRollBonus}
+                      onChange={(e) =>
+                        setAbilityRollBonus(Number(e.target.value) || 0)
+                      }
+                      className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={confirmAbilityUse}
-              className="w-full bg-cyan-500 text-slate-950 font-black py-3 rounded-lg"
+              className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3 rounded-lg shadow-lg"
             >
-              Confirmar e Gastar Energia
+              Confirmar, Descontar Energia e Rolar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PASSIVA/BUFF */}
+      {isPassiveModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex justify-between">
+              <h3 className="text-lg font-bold text-amber-400">
+                Cadastrar Passiva / Buff
+              </h3>
+              <button onClick={closePassiveModal}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <input
+              value={newPassive.name}
+              onChange={(e) =>
+                setNewPassive({ ...newPassive, name: e.target.value })
+              }
+              placeholder="Nome da passiva ou buff"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <input
+              value={newPassive.effect}
+              onChange={(e) =>
+                setNewPassive({ ...newPassive, effect: e.target.value })
+              }
+              placeholder="Efeito (ex: +2 Defesa, Visão Noturna)"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <textarea
+              value={newPassive.desc}
+              onChange={(e) =>
+                setNewPassive({ ...newPassive, desc: e.target.value })
+              }
+              placeholder="Descrição detalhada..."
+              rows={3}
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <button
+              onClick={savePassive}
+              className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
+            >
+              Salvar Passiva
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ITEM */}
+      {isItemModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex justify-between">
+              <h3 className="text-lg font-bold text-amber-400">Cadastrar Item</h3>
+              <button onClick={closeItemModal}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <input
+              value={newItem.name}
+              onChange={(e) =>
+                setNewItem({ ...newItem, name: e.target.value })
+              }
+              placeholder="Nome do item"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <input
+              type="number"
+              min="1"
+              value={newItem.qty}
+              onChange={(e) =>
+                setNewItem({ ...newItem, qty: Number(e.target.value) || 1 })
+              }
+              placeholder="Quantidade"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+            />
+            <button
+              onClick={saveItem}
+              className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
+            >
+              Salvar Item
             </button>
           </div>
         </div>
