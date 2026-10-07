@@ -55,7 +55,7 @@ const CATEGORIES = [
   'Absoluta',
 ];
 
-// Função utilitária para calcular limites de gasto de energia com base na Categoria e Nível de Controle
+// Cálculo de limites de gasto de energia com base na Categoria e Nível de Controle
 const getAbilityCategoryLimits = (category, controlLevel = 0) => {
   const ctrl = Math.max(0, Number(controlLevel) || 0);
   const base = Math.max(1, 16 - ctrl);
@@ -262,10 +262,14 @@ export default function App() {
     desc: '',
   });
 
+  // Habilidade com suporte a rolagem e bônus customizados
   const [newAbility, setNewAbility] = useState({
     name: '',
     category: 'Simples',
     attr: 'Força',
+    dmgDiceQty: 1,
+    dmgDiceSides: 6,
+    dmgBonus: 0,
     damage: '1d6',
     area: '3m',
     dur: 'Instantânea',
@@ -292,8 +296,10 @@ export default function App() {
     desc: '',
   });
 
+  // Rolagem de Habilidade
   const [abilityRollModal, setAbilityRollModal] = useState(null);
-  const [abilityRollDamage, setAbilityRollDamage] = useState('1d6');
+  const [abilityRollQty, setAbilityRollQty] = useState(1);
+  const [abilityRollSides, setAbilityRollSides] = useState(6);
   const [abilityRollBonus, setAbilityRollBonus] = useState(0);
   const [abilityRollCost, setAbilityRollCost] = useState(16);
 
@@ -690,14 +696,31 @@ export default function App() {
     });
   };
 
+  // Salvar Habilidade com a Formatação de Dados e Bônus
   const saveAbility = () => {
     if (!newAbility.name.trim()) return;
+
+    const qty = Math.max(1, Number(newAbility.dmgDiceQty) || 1);
+    const sides = Number(newAbility.dmgDiceSides) || 6;
+    const bonus = Number(newAbility.dmgBonus) || 0;
+
+    let formattedDamage = `${qty}d${sides}`;
+    if (bonus > 0) formattedDamage += ` + ${bonus}`;
+    else if (bonus < 0) formattedDamage += ` - ${Math.abs(bonus)}`;
+
+    const finalAbility = {
+      ...newAbility,
+      dmgDiceQty: qty,
+      dmgDiceSides: sides,
+      dmgBonus: bonus,
+      damage: formattedDamage,
+    };
 
     if (editingAbilityId !== null) {
       setAbilities((prev) =>
         prev.map((ability) =>
           ability.id === editingAbilityId
-            ? { ...ability, ...newAbility }
+            ? { ...ability, ...finalAbility }
             : ability
         )
       );
@@ -705,7 +728,7 @@ export default function App() {
       setAbilities((prev) => [
         ...prev,
         {
-          ...newAbility,
+          ...finalAbility,
           id: Date.now(),
           x: 20 + (prev.length % 2) * 290,
           y: 20 + Math.floor(prev.length / 2) * 200,
@@ -719,11 +742,16 @@ export default function App() {
   };
 
   const editAbility = (ability) => {
+    const { pools, bonus } = parseDiceNotation(ability.damage || '1d6');
+
     setNewAbility({
       name: ability.name || '',
       category: ability.category || 'Simples',
       attr: ability.attr || 'Força',
-      damage: ability.damage || '',
+      dmgDiceQty: ability.dmgDiceQty ?? (pools[0]?.qty || 1),
+      dmgDiceSides: ability.dmgDiceSides ?? (pools[0]?.sides || 6),
+      dmgBonus: ability.dmgBonus ?? bonus ?? 0,
+      damage: ability.damage || '1d6',
       area: ability.area || '3m',
       dur: ability.dur || 'Instantânea',
       desc: ability.desc || '',
@@ -743,13 +771,9 @@ export default function App() {
     const savedDamage = String(ability.damage || '1d6').trim();
     const { pools, bonus } = parseDiceNotation(savedDamage);
 
-    if (pools.length > 0) {
-      setAbilityRollDamage(`${pools[0].qty}d${pools[0].sides}`);
-      setAbilityRollBonus(bonus);
-    } else {
-      setAbilityRollDamage('1d6');
-      setAbilityRollBonus(0);
-    }
+    setAbilityRollQty(ability.dmgDiceQty ?? (pools[0]?.qty || 1));
+    setAbilityRollSides(ability.dmgDiceSides ?? (pools[0]?.sides || 6));
+    setAbilityRollBonus(ability.dmgBonus ?? bonus ?? 0);
 
     const limits = getAbilityCategoryLimits(
       ability.category || 'Simples',
@@ -796,23 +820,12 @@ export default function App() {
       current: Math.max(0, prev.current - cost),
     }));
 
-    if (ability.damage) {
-      const { pools, bonus } = parseDiceNotation(abilityRollDamage || '1d6');
-      executeRoll({
-        label: `Dano da habilidade: ${ability.name} (${ability.category || 'Simples'})`,
-        pools,
-        bonus: bonus + Number(abilityRollBonus),
-        isDamage: true,
-      });
-    } else {
-      const attr = ability.attr || 'Força';
-      const attributeMod = getMod(attributes[attr] || 10);
-      executeRoll({
-        label: `Habilidade: ${ability.name} (${ability.category || 'Simples'})`,
-        pools: [{ qty: 1, sides: 20 }],
-        bonus: attributeMod + Number(profBonus),
-      });
-    }
+    executeRoll({
+      label: `Dano da habilidade: ${ability.name} (${ability.category || 'Simples'})`,
+      pools: [{ qty: Math.max(1, abilityRollQty), sides: abilityRollSides }],
+      bonus: Number(abilityRollBonus) || 0,
+      isDamage: true,
+    });
 
     setAbilityRollModal(null);
   };
@@ -824,6 +837,9 @@ export default function App() {
       name: '',
       category: 'Simples',
       attr: 'Força',
+      dmgDiceQty: 1,
+      dmgDiceSides: 6,
+      dmgBonus: 0,
       damage: '1d6',
       area: '3m',
       dur: 'Instantânea',
@@ -835,7 +851,7 @@ export default function App() {
     });
   };
 
-  // --- LÓGICA DE PASSIVAS E BUFFS ---
+  // Lógica de Passivas e Buffs
   const savePassive = () => {
     if (!newPassive.name.trim()) return;
 
@@ -874,7 +890,6 @@ export default function App() {
     closePassiveModal();
   };
 
-  // ATIVAÇÃO / DESATIVAÇÃO DE PASSIVAS (AFETA A ENERGIA MÁXIMA)
   const togglePassiveActive = (passiveId) => {
     setPassives((prev) =>
       prev.map((p) => {
@@ -889,18 +904,16 @@ export default function App() {
             );
             return p;
           }
-          // Subtrai da ENERGIA MÁXIMA
           setEnergy((e) => {
             const newMax = Math.max(0, e.max - reservedCost);
             return {
               ...e,
               max: newMax,
-              current: Math.min(e.current, newMax), // Ajusta a atual se ultrapassar o novo máximo
+              current: Math.min(e.current, newMax),
             };
           });
           return { ...p, active: true };
         } else {
-          // Devolve para a ENERGIA MÁXIMA
           setEnergy((e) => ({
             ...e,
             max: e.max + reservedCost,
@@ -1073,11 +1086,10 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans select-none">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* CABEÇALHO COM INFORMAÇÕES DO PERSONAGEM */}
+        {/* CABEÇALHO */}
         <header className="bg-slate-900 border border-amber-500/30 p-6 rounded-xl shadow-lg space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
             
-            {/* Foto */}
             <div className="flex flex-col items-center justify-center space-y-2">
               {characterImage ? (
                 <img
@@ -1111,7 +1123,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Nome e Nível */}
             <div className="space-y-2">
               <input
                 value={charInfo.name}
@@ -1139,7 +1150,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Mutação e Classe Base */}
             <div className="grid grid-cols-1 gap-2 text-xs">
               <div>
                 <label className="text-slate-400 block mb-1">Mutação</label>
@@ -1171,7 +1181,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Proficiência e Classe Avançada */}
             <div className="space-y-2">
               <div className="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
                 <span className="text-xs text-slate-400">Proficiência</span>
@@ -1195,7 +1204,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* MOVIMENTAÇÃO E NÍVEL DE CONTROLE */}
             <div className="space-y-2 bg-slate-950 p-3 rounded-lg border border-slate-800">
               <div>
                 <label className="text-xs text-slate-400 flex items-center gap-1 mb-1">
@@ -1237,7 +1245,6 @@ export default function App() {
 
           </div>
 
-          {/* STATUS PRINCIPAIS (HP, ENERGIA, CA) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4">
             <div className="bg-slate-950 border border-rose-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-rose-400 font-bold">
@@ -2190,8 +2197,8 @@ export default function App() {
 
                         {/* CORPO DO CARD */}
                         <div className="flex-1 overflow-y-auto space-y-1.5 text-xs text-slate-400 my-1 pr-1">
-                          <p className="text-[10px] text-slate-500">
-                            {ability.attr} · {ability.damage || 'Sem dano'}
+                          <p className="text-[10px] text-slate-500 font-semibold">
+                            {ability.attr} · Dano: <span className="text-amber-300">{ability.damage || '1d6'}</span>
                           </p>
 
                           {ability.desc && (
@@ -2310,7 +2317,6 @@ export default function App() {
                           <button
                             onClick={() => {
                               if (passive.active) {
-                                // Se estiver ativa e for deletada, devolve a energia máxima
                                 setEnergy((e) => ({
                                   ...e,
                                   max: e.max + (Number(passive.reservedEnergy) || 0),
@@ -2590,7 +2596,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE HABILIDADE */}
+      {/* MODAL DE CADASTRAR/EDITAR HABILIDADE (SELEÇÃO DE DADOS E BÔNUS) */}
       {isAbilityModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2602,6 +2608,7 @@ export default function App() {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <input
               value={newAbility.name}
               onChange={(e) =>
@@ -2630,14 +2637,66 @@ export default function App() {
               </select>
             </div>
 
-            <input
-              value={newAbility.damage}
-              onChange={(e) =>
-                setNewAbility({ ...newAbility, damage: e.target.value })
-              }
-              placeholder="Dano base (ex: 2d6 + 3)"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
-            />
+            {/* CONFIGURAÇÃO DE DANO */}
+            <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+              <label className="text-xs text-amber-400 font-bold block">
+                Personalizar Rolagem de Dano
+              </label>
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <div>
+                  <label className="text-[10px] text-slate-400 block">Qtd Dados</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newAbility.dmgDiceQty}
+                    onChange={(e) =>
+                      setNewAbility({
+                        ...newAbility,
+                        dmgDiceQty: Math.max(1, Number(e.target.value) || 1),
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 block">Tipo Dado</label>
+                  <select
+                    value={newAbility.dmgDiceSides}
+                    onChange={(e) =>
+                      setNewAbility({
+                        ...newAbility,
+                        dmgDiceSides: Number(e.target.value),
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold"
+                  >
+                    <option value={4}>d4</option>
+                    <option value={6}>d6</option>
+                    <option value={8}>d8</option>
+                    <option value={10}>d10</option>
+                    <option value={12}>d12</option>
+                    <option value={20}>d20</option>
+                    <option value={100}>d100</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-400 block">Bônus (+/-)</label>
+                  <input
+                    type="number"
+                    value={newAbility.dmgBonus}
+                    onChange={(e) =>
+                      setNewAbility({
+                        ...newAbility,
+                        dmgBonus: Number(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold text-center"
+                  />
+                </div>
+              </div>
+            </div>
 
             <textarea
               value={newAbility.desc}
@@ -2659,7 +2718,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE USO DA HABILIDADE */}
+      {/* MODAL DE USO DA HABILIDADE (COM ROLAGEM E BÔNUS PERSONALIZÁVEL) */}
       {abilityRollModal && (() => {
         const limits = getAbilityCategoryLimits(
           abilityRollModal.category || 'Simples',
@@ -2684,7 +2743,7 @@ export default function App() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
-                    Custo limitado pela categoria e Nível de Controle ({charInfo.controlLevel})
+                    Configure o custo e ajuste a rolagem antes de lançar
                   </p>
                 </div>
                 <button onClick={() => setAbilityRollModal(null)}>
@@ -2692,7 +2751,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
                   <p className="text-xs text-slate-400">
                     Custo Base: <strong className="text-cyan-300">{limits.base}⚡</strong> por multiplicador
@@ -2719,60 +2778,70 @@ export default function App() {
                     }
                     className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-cyan-300 font-bold text-lg text-center"
                   />
-                  <span className="text-[10px] text-slate-500 block text-center mt-1">
-                    Multiplicador equivalente: ~
-                    {limits.base > 0
-                      ? (abilityRollCost / limits.base).toFixed(1)
-                      : 0}
-                    x
-                  </span>
                 </div>
 
-                {abilityRollModal.damage && (
-                  <>
+                {/* DADOS E BÔNUS DA HABILIDADE */}
+                <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <label className="text-xs text-amber-400 font-bold block">
+                    Ajustar Dano da Rolagem
+                  </label>
+                  <div className="grid grid-cols-3 gap-2 items-center">
                     <div>
-                      <label className="text-xs text-slate-400 block mb-1">
-                        Dados de Dano Personalizado (ex: 3d6, 1d12)
-                      </label>
+                      <label className="text-[10px] text-slate-400 block">Qtd Dados</label>
                       <input
-                        type="text"
-                        value={abilityRollDamage}
+                        type="number"
+                        min="1"
+                        value={abilityRollQty}
                         onChange={(e) =>
-                          setAbilityRollDamage(e.target.value)
+                          setAbilityRollQty(Math.max(1, Number(e.target.value) || 1))
                         }
-                        className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                        className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold text-center"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs text-slate-400 block mb-1">
-                        Bônus Fixo (+/-)
-                      </label>
+                      <label className="text-[10px] text-slate-400 block">Lados</label>
+                      <select
+                        value={abilityRollSides}
+                        onChange={(e) => setAbilityRollSides(Number(e.target.value))}
+                        className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold"
+                      >
+                        <option value={4}>d4</option>
+                        <option value={6}>d6</option>
+                        <option value={8}>d8</option>
+                        <option value={10}>d10</option>
+                        <option value={12}>d12</option>
+                        <option value={20}>d20</option>
+                        <option value={100}>d100</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-slate-400 block">Bônus (+/-)</label>
                       <input
                         type="number"
                         value={abilityRollBonus}
-                        onChange={(e) =>
-                          setAbilityRollBonus(Number(e.target.value) || 0)
-                        }
-                        className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                        onChange={(e) => setAbilityRollBonus(Number(e.target.value) || 0)}
+                        className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-xs text-amber-300 font-bold text-center"
                       />
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
 
               <button
                 onClick={confirmAbilityUse}
                 className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3 rounded-lg shadow-lg"
               >
-                Confirmar, Descontar {abilityRollCost}⚡ e Rolar
+                Confirmar, Descontar {abilityRollCost}⚡ e Rolar {abilityRollQty}d{abilityRollSides}
+                {abilityRollBonus > 0 ? `+${abilityRollBonus}` : abilityRollBonus < 0 ? abilityRollBonus : ''}
               </button>
             </div>
           </div>
         );
       })()}
 
-      {/* MODAL DE PASSIVA/BUFF (COM CATEGORIA E LIMITES DE ENERGIA MÁXIMA) */}
+      {/* MODAL DE PASSIVA/BUFF */}
       {isPassiveModalOpen && (() => {
         const limits = getAbilityCategoryLimits(
           newPassive.category || 'Simples',
@@ -2855,16 +2924,8 @@ export default function App() {
                       reservedEnergy: Number(e.target.value) || limits.minCost,
                     })
                   }
-                  placeholder="Custo de energia reservada"
                   className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm font-bold text-cyan-300 text-center"
                 />
-                <span className="text-[10px] text-slate-500 block text-center mt-1">
-                  Multiplicador equivalente: ~
-                  {limits.base > 0
-                    ? (newPassive.reservedEnergy / limits.base).toFixed(1)
-                    : 0}
-                  x
-                </span>
               </div>
 
               <input
