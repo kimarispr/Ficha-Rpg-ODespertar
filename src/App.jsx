@@ -181,7 +181,7 @@ export default function App() {
   const [editingPassiveId, setEditingPassiveId] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
 
-  // Estados de Modificação para Dados Soltos com Múltiplos Pools
+  // Estados de Dados Soltos
   const [quickRollPools, setQuickRollPools] = useState(() =>
     loadState('quickRollPools', [
       { id: 1, qty: 1, sides: 6 },
@@ -190,15 +190,18 @@ export default function App() {
   );
   const [quickRollBonus, setQuickRollBonus] = useState(0);
 
-  // Estados de Recuperação de Energia Editável
+  // Recuperação de Energia Editável
   const [energyRecQty, setEnergyRecQty] = useState(1);
   const [energyRecSides, setEnergyRecSides] = useState(6);
   const [energyRecBonus, setEnergyRecBonus] = useState(0);
 
-  // Estados para Canvas de Habilidades (Drag & Drop)
+  // Canvas de Habilidades (Mover e Redimensionar)
   const canvasRef = useRef(null);
   const [draggingAbilityId, setDraggingAbilityId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const [resizingAbilityId, setResizingAbilityId] = useState(null);
+  const [resizeStart, setResizeStart] = useState({ w: 0, h: 0, x: 0, y: 0 });
 
   const [newWeapon, setNewWeapon] = useState({
     name: '',
@@ -217,6 +220,8 @@ export default function App() {
     desc: '',
     x: 20,
     y: 20,
+    w: 270,
+    h: 180,
   });
 
   const [newPassive, setNewPassive] = useState({
@@ -252,7 +257,6 @@ export default function App() {
   }, [charInfo.level]);
 
   useEffect(() => {
-    // Configura os valores padrão iniciais de recuperação de energia
     const defaultDiceCount = Math.max(
       1,
       Math.floor(Math.max(0, Number(energy.max) || 0) / 20)
@@ -320,7 +324,6 @@ export default function App() {
 
   const getMod = (value) => Math.floor((Number(value) - 10) / 2);
 
-  // Calcula a proficiência somando Atributo + Bônus Proficiência + Ajuste Manual
   const getSkillTotal = (skill) => {
     const attrMod = getMod(attributes[skill.attr] || 10);
     const isProf = proficientSkills.includes(skill.name);
@@ -334,7 +337,6 @@ export default function App() {
     return attrMod + profVal + manualVal;
   };
 
-  // Motor Central de Rolagem de Dados com Formatação Detalhada Ex: 6, 12 + 8 = 26
   const executeRoll = ({ label, pools = [], bonus = 0, isDamage = false }) => {
     let allRolls = [];
 
@@ -349,7 +351,6 @@ export default function App() {
     const diceSum = allRolls.reduce((a, b) => a + b, 0);
     const total = diceSum + bonus;
 
-    // Formatação do cálculo em texto separado
     let breakdown = allRolls.join(', ');
     if (bonus > 0) {
       breakdown += ` + ${bonus}`;
@@ -381,7 +382,6 @@ export default function App() {
     return total;
   };
 
-  // Parser de Expressões de Dados (Ex: "3d6 + 2d8 + 5" ou "1d8")
   const parseDiceNotation = (notation) => {
     if (!notation) return { pools: [], bonus: 0 };
     const pools = [];
@@ -499,7 +499,7 @@ export default function App() {
     );
   };
 
-  // Funções para Drag & Drop do Canvas de Habilidades
+  // --- LÓGICA DE MOVER CARD NO CANVAS ---
   const handlePointerDownAbility = (e, ability) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -514,14 +514,16 @@ export default function App() {
   const handlePointerMoveAbility = (e, abilityId) => {
     if (draggingAbilityId !== abilityId || !canvasRef.current) return;
     const canvasRect = canvasRef.current.getBoundingClientRect();
+    const targetAbility = abilities.find((a) => a.id === abilityId);
+    const cardW = targetAbility?.w || 270;
 
     const newX = Math.max(
       0,
-      Math.min(canvasRect.width - 270, e.clientX - canvasRect.left - dragOffset.x)
+      Math.min(canvasRect.width - cardW, e.clientX - canvasRect.left - dragOffset.x)
     );
     const newY = Math.max(
       0,
-      Math.min(canvasRect.height - 180, e.clientY - canvasRect.top - dragOffset.y)
+      e.clientY - canvasRect.top - dragOffset.y
     );
 
     setAbilities((prev) =>
@@ -533,17 +535,64 @@ export default function App() {
     if (draggingAbilityId) {
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        // Ignora erros caso o ponteiro já tenha sido liberado
-      }
+      } catch {}
       setDraggingAbilityId(null);
     }
+  };
+
+  // --- LÓGICA DE REDIMENSIONAR CARD NO CANVAS ---
+  const handleResizePointerDown = (e, ability) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setResizingAbilityId(ability.id);
+    setResizeStart({
+      w: ability.w || 270,
+      h: ability.h || 180,
+      x: e.clientX,
+      y: e.clientY,
+    });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleResizePointerMove = (e, abilityId) => {
+    if (resizingAbilityId !== abilityId) return;
+    e.stopPropagation();
+
+    const deltaX = e.clientX - resizeStart.x;
+    const deltaY = e.clientY - resizeStart.y;
+
+    const newW = Math.max(200, resizeStart.w + deltaX);
+    const newH = Math.max(140, resizeStart.h + deltaY);
+
+    setAbilities((prev) =>
+      prev.map((a) => (a.id === abilityId ? { ...a, w: newW, h: newH } : a))
+    );
+  };
+
+  const handleResizePointerUp = (e) => {
+    if (resizingAbilityId) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {}
+      setResizingAbilityId(null);
+    }
+  };
+
+  // Cálculo Dinâmico da Altura do Canvas para expansão contínua
+  const getCanvasDynamicHeight = () => {
+    if (!abilities || abilities.length === 0) return 500;
+    const maxY = Math.max(
+      ...abilities.map((a) => (a.y || 20) + (a.h || 180))
+    );
+    return Math.max(500, maxY + 60);
   };
 
   const autoArrangeAbilities = () => {
     setAbilities((prev) =>
       prev.map((ability, idx) => ({
         ...ability,
+        w: ability.w || 270,
+        h: ability.h || 180,
         x: 20 + (idx % 2) * 290,
         y: 20 + Math.floor(idx / 2) * 200,
       }))
@@ -618,6 +667,8 @@ export default function App() {
           id: Date.now(),
           x: 20 + (prev.length % 2) * 290,
           y: 20 + Math.floor(prev.length / 2) * 200,
+          w: 270,
+          h: 180,
         },
       ]);
     }
@@ -635,6 +686,8 @@ export default function App() {
       desc: ability.desc || '',
       x: ability.x || 20,
       y: ability.y || 20,
+      w: ability.w || 270,
+      h: ability.h || 180,
     });
 
     setEditingAbilityId(ability.id);
@@ -718,10 +771,11 @@ export default function App() {
       desc: '',
       x: 20,
       y: 20,
+      w: 270,
+      h: 180,
     });
   };
 
-  // Gerenciamento de Passivas & Desconto de Energia em Tempo Real
   const savePassive = () => {
     if (!newPassive.name.trim()) return;
 
@@ -1666,7 +1720,7 @@ export default function App() {
         {activeTab === 'combate' && (
           <div className="space-y-6">
 
-            {/* ROLAGEM DE DADOS SOLTOS (MÚLTIPLOS POOLS) */}
+            {/* ROLAGEM DE DADOS SOLTOS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -1752,7 +1806,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* SEÇÃO DE ARMAS */}
+            {/* ARMAS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -1840,7 +1894,7 @@ export default function App() {
               )}
             </section>
 
-            {/* RECUPERAÇÃO DE ENERGIA CUSTOMIZÁVEL */}
+            {/* RECUPERAÇÃO DE ENERGIA */}
             <section className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
@@ -1850,7 +1904,7 @@ export default function App() {
                   <p className="text-sm text-slate-400 mt-1">
                     Ajuste os valores para realizar o cálculo automático e preencher a barra.
                   </p>
-                  
+
                   <div className="flex flex-wrap items-center gap-3 mt-3">
                     <div className="flex items-center gap-1">
                       <span className="text-xs text-slate-400">Qtd:</span>
@@ -1898,7 +1952,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* HABILIDADES / MAGIAS COM CANVAS ARRASTÁVEL */}
+            {/* CANVAS DE HABILIDADES (EXPANSÍVEL E REDIMENSIONÁVEL) */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <div>
@@ -1906,7 +1960,7 @@ export default function App() {
                     <Sparkles className="w-5 h-5" /> Canvas de Habilidades
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Arraste os cards livremente dentro do espaço demarcado.
+                    Arraste pelo cabeçalho para mover. Arraste a alça no canto inferior direito para redimensionar.
                   </p>
                 </div>
 
@@ -1936,11 +1990,14 @@ export default function App() {
               ) : (
                 <div
                   ref={canvasRef}
-                  className="relative w-full h-[540px] bg-slate-950/80 border-2 border-dashed border-cyan-900/40 rounded-xl overflow-hidden shadow-inner p-4"
+                  style={{ height: `${getCanvasDynamicHeight()}px` }}
+                  className="relative w-full bg-slate-950/80 border-2 border-dashed border-cyan-900/40 rounded-xl shadow-inner p-4 transition-all duration-200"
                 >
                   {abilities.map((ability) => {
                     const posX = ability.x ?? 20;
                     const posY = ability.y ?? 20;
+                    const cardW = ability.w ?? 270;
+                    const cardH = ability.h ?? 180;
 
                     return (
                       <div
@@ -1949,24 +2006,33 @@ export default function App() {
                           position: 'absolute',
                           left: `${posX}px`,
                           top: `${posY}px`,
+                          width: `${cardW}px`,
+                          height: `${cardH}px`,
                         }}
-                        onPointerDown={(e) => handlePointerDownAbility(e, ability)}
-                        onPointerMove={(e) => handlePointerMoveAbility(e, ability.id)}
-                        onPointerUp={handlePointerUpAbility}
-                        className={`w-[270px] bg-slate-900 border-2 ${
-                          draggingAbilityId === ability.id
-                            ? 'border-amber-400 z-30 shadow-2xl scale-105'
+                        className={`bg-slate-900 border-2 ${
+                          draggingAbilityId === ability.id || resizingAbilityId === ability.id
+                            ? 'border-amber-400 z-30 shadow-2xl scale-[1.01]'
                             : 'border-cyan-900/60 z-10 hover:border-cyan-500'
-                        } rounded-xl p-4 space-y-2 cursor-grab active:cursor-grabbing transition-shadow select-none`}
+                        } rounded-xl p-3 flex flex-col justify-between select-none transition-shadow`}
                       >
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-1.5">
-                            <Move className="w-3.5 h-3.5 text-slate-500" />
-                            <h3 className="font-bold text-cyan-300 text-sm truncate max-w-[150px]">
+                        {/* CAMEÇALHO DO CARD - ÁREA DE ARRASTE PARA MOVER */}
+                        <div
+                          onPointerDown={(e) => handlePointerDownAbility(e, ability)}
+                          onPointerMove={(e) => handlePointerMoveAbility(e, ability.id)}
+                          onPointerUp={handlePointerUpAbility}
+                          className="flex justify-between items-start cursor-grab active:cursor-grabbing border-b border-slate-800/80 pb-2 mb-1"
+                        >
+                          <div className="flex items-center gap-1.5 overflow-hidden">
+                            <Move className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <h3 className="font-bold text-cyan-300 text-xs truncate">
                               {ability.name}
                             </h3>
                           </div>
-                          <div className="flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
+
+                          <div
+                            className="flex gap-1 shrink-0"
+                            onPointerDown={(e) => e.stopPropagation()}
+                          >
                             <button
                               onClick={() => editAbility(ability)}
                               className="text-slate-500 hover:text-cyan-300"
@@ -1984,29 +2050,46 @@ export default function App() {
                           </div>
                         </div>
 
-                        <p className="text-[10px] text-slate-500">
-                          {ability.attr} · {ability.damage || 'Sem dano'}
-                        </p>
-
-                        {ability.desc && (
-                          <p className="text-xs text-slate-400 line-clamp-2 border-t border-slate-800 pt-1">
-                            {ability.desc}
+                        {/* CORPO DO CARD COM SCROLL CASO O TAMANHO FIQUE PEQUENO */}
+                        <div className="flex-1 overflow-y-auto space-y-1.5 text-xs text-slate-400 my-1 pr-1">
+                          <p className="text-[10px] text-slate-500">
+                            {ability.attr} · {ability.damage || 'Sem dano'}
                           </p>
-                        )}
 
-                        <div className="grid grid-cols-2 gap-1.5 pt-1" onPointerDown={(e) => e.stopPropagation()}>
+                          {ability.desc && (
+                            <p className="text-[11px] leading-snug">
+                              {ability.desc}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* BOTAO DE ACAO */}
+                        <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80">
                           <button
                             onClick={() => rollAbilityAttack(ability)}
-                            className="bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[10px]"
+                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1 rounded text-[10px]"
                           >
                             Acerto
                           </button>
                           <button
                             onClick={() => castAbility(ability)}
-                            className="bg-cyan-600 text-slate-950 font-bold py-1.5 rounded text-[10px]"
+                            className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold py-1 rounded text-[10px]"
                           >
                             Usar / Dano
                           </button>
+                        </div>
+
+                        {/* ALÇA DE REDIMENSIONAMENTO DO CARD */}
+                        <div
+                          onPointerDown={(e) => handleResizePointerDown(e, ability)}
+                          onPointerMove={(e) => handleResizePointerMove(e, ability.id)}
+                          onPointerUp={handleResizePointerUp}
+                          className="absolute bottom-0.5 right-0.5 w-4 h-4 cursor-se-resize flex items-center justify-center text-cyan-500/60 hover:text-amber-400"
+                          title="Clique e arraste para redimensionar"
+                        >
+                          <svg className="w-3 h-3 fill-current" viewBox="0 0 16 16">
+                            <path d="M14 14H10V12H12V10H14V14ZM14 8H12V6H14V8ZM8 14H6V12H8V14Z" />
+                          </svg>
                         </div>
                       </div>
                     );
@@ -2102,7 +2185,6 @@ export default function App() {
                         </p>
                       )}
 
-                      {/* Botão de Toggle Ativa/Inativa com Desconto Automático de Energia */}
                       <button
                         onClick={() => togglePassiveActive(passive.id)}
                         className={`w-full py-2 rounded text-xs font-bold transition-all ${
@@ -2241,7 +2323,7 @@ export default function App() {
 
       </div>
 
-      {/* POPUP DE RESULTADO DA ROLAGEM COM CÁLCULO SEPARADO */}
+      {/* POPUP DE RESULTADO */}
       {activeRollResult && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-amber-500/60 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
@@ -2255,7 +2337,6 @@ export default function App() {
             </div>
             <p className="text-sm text-slate-300">{activeRollResult.label}</p>
 
-            {/* Exibição detalhada ex: 3, 1, 4, 8, 8 + 5 = 25 */}
             <p className="text-sm font-mono text-cyan-300 bg-slate-950 p-2 rounded border border-slate-800">
               {activeRollResult.breakdown}
             </p>
@@ -2355,7 +2436,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE HABILIDADE / CADASTRO */}
+      {/* MODAL DE HABILIDADE */}
       {isAbilityModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2479,7 +2560,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE PASSIVA/BUFF COM CATEGORIAS E ENERGIA RESERVADA */}
+      {/* MODAL DE PASSIVA/BUFF */}
       {isPassiveModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2521,7 +2602,7 @@ export default function App() {
 
             <div>
               <label className="text-xs text-slate-400 block mb-1">
-                Energia Reservada (Gasto para manter ativa)
+                Energia Reservada
               </label>
               <input
                 type="number"
