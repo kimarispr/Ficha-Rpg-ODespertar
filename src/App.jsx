@@ -19,6 +19,8 @@ import {
   ShieldAlert,
   Move,
   LayoutGrid,
+  Footprints,
+  Sliders,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
@@ -44,7 +46,7 @@ const initialSkills = [
   { name: 'Sobrevivência', attr: 'Sabedoria' },
 ];
 
-const PASSIVE_CATEGORIES = [
+const CATEGORIES = [
   'Simples',
   'Normal',
   'Grande',
@@ -52,6 +54,53 @@ const PASSIVE_CATEGORIES = [
   'Suprema',
   'Absoluta',
 ];
+
+// Função utilitária para calcular limites de gasto de energia
+const getAbilityCategoryLimits = (category, controlLevel = 0) => {
+  const ctrl = Math.max(0, Number(controlLevel) || 0);
+  const base = Math.max(1, 16 - ctrl);
+  let minMult = 1;
+  let maxMult = 2;
+
+  switch (category) {
+    case 'Simples':
+      minMult = 1;
+      maxMult = 2;
+      break;
+    case 'Normal':
+      minMult = 3;
+      maxMult = 5;
+      break;
+    case 'Grande':
+      minMult = 6;
+      maxMult = 15;
+      break;
+    case 'Grandiosa':
+      minMult = 16;
+      maxMult = 30;
+      break;
+    case 'Suprema':
+      minMult = 31;
+      maxMult = 59;
+      break;
+    case 'Absoluta':
+      minMult = 60;
+      maxMult = 999;
+      break;
+    default:
+      minMult = 1;
+      maxMult = 2;
+  }
+
+  return {
+    base,
+    minMult,
+    maxMult,
+    minCost: minMult * base,
+    maxCost: maxMult === 999 ? '∞' : maxMult * base,
+    maxCostNum: maxMult * base,
+  };
+};
 
 const loadState = (key, fallback) => {
   try {
@@ -77,6 +126,8 @@ export default function App() {
       mutation: '',
       baseClass: '',
       advClass: 'Nenhuma',
+      movement: '9m',
+      controlLevel: 0,
     })
   );
 
@@ -181,7 +232,7 @@ export default function App() {
   const [editingPassiveId, setEditingPassiveId] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
 
-  // Estados de Dados Soltos
+  // Dados Soltos
   const [quickRollPools, setQuickRollPools] = useState(() =>
     loadState('quickRollPools', [
       { id: 1, qty: 1, sides: 6 },
@@ -190,12 +241,12 @@ export default function App() {
   );
   const [quickRollBonus, setQuickRollBonus] = useState(0);
 
-  // Recuperação de Energia Editável
+  // Recuperação de Energia
   const [energyRecQty, setEnergyRecQty] = useState(1);
   const [energyRecSides, setEnergyRecSides] = useState(6);
   const [energyRecBonus, setEnergyRecBonus] = useState(0);
 
-  // Canvas de Habilidades (Mover e Redimensionar)
+  // Canvas de Habilidades
   const canvasRef = useRef(null);
   const [draggingAbilityId, setDraggingAbilityId] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -213,6 +264,7 @@ export default function App() {
 
   const [newAbility, setNewAbility] = useState({
     name: '',
+    category: 'Simples',
     attr: 'Força',
     damage: '1d6',
     area: '3m',
@@ -241,10 +293,9 @@ export default function App() {
   });
 
   const [abilityRollModal, setAbilityRollModal] = useState(null);
-  const [abilityRollTier, setAbilityRollTier] = useState('Simples');
   const [abilityRollDamage, setAbilityRollDamage] = useState('1d6');
   const [abilityRollBonus, setAbilityRollBonus] = useState(0);
-  const [abilityRollCost, setAbilityRollCost] = useState(2);
+  const [abilityRollCost, setAbilityRollCost] = useState(16);
 
   useEffect(() => {
     const level = Math.max(1, Number(charInfo.level) || 1);
@@ -499,7 +550,7 @@ export default function App() {
     );
   };
 
-  // --- LÓGICA DE MOVER CARD NO CANVAS ---
+  // Mover Card Habilidade
   const handlePointerDownAbility = (e, ability) => {
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -521,10 +572,7 @@ export default function App() {
       0,
       Math.min(canvasRect.width - cardW, e.clientX - canvasRect.left - dragOffset.x)
     );
-    const newY = Math.max(
-      0,
-      e.clientY - canvasRect.top - dragOffset.y
-    );
+    const newY = Math.max(0, e.clientY - canvasRect.top - dragOffset.y);
 
     setAbilities((prev) =>
       prev.map((a) => (a.id === abilityId ? { ...a, x: newX, y: newY } : a))
@@ -540,7 +588,7 @@ export default function App() {
     }
   };
 
-  // --- LÓGICA DE REDIMENSIONAR CARD NO CANVAS ---
+  // Redimensionar Card
   const handleResizePointerDown = (e, ability) => {
     e.stopPropagation();
     e.preventDefault();
@@ -578,7 +626,6 @@ export default function App() {
     }
   };
 
-  // Cálculo Dinâmico da Altura do Canvas para expansão contínua
   const getCanvasDynamicHeight = () => {
     if (!abilities || abilities.length === 0) return 500;
     const maxY = Math.max(
@@ -605,18 +652,13 @@ export default function App() {
     if (editingWeaponId !== null) {
       setWeapons((prev) =>
         prev.map((weapon) =>
-          weapon.id === editingWeaponId
-            ? { ...weapon, ...newWeapon }
-            : weapon
+          weapon.id === editingWeaponId ? { ...weapon, ...newWeapon } : weapon
         )
       );
     } else {
       setWeapons((prev) => [
         ...prev,
-        {
-          ...newWeapon,
-          id: Date.now(),
-        },
+        { ...newWeapon, id: Date.now() },
       ]);
     }
 
@@ -679,6 +721,7 @@ export default function App() {
   const editAbility = (ability) => {
     setNewAbility({
       name: ability.name || '',
+      category: ability.category || 'Simples',
       attr: ability.attr || 'Força',
       damage: ability.damage || '',
       area: ability.area || '3m',
@@ -696,7 +739,6 @@ export default function App() {
 
   const castAbility = (ability) => {
     setAbilityRollModal(ability);
-    setAbilityRollTier('Simples');
 
     const savedDamage = String(ability.damage || '1d6').trim();
     const { pools, bonus } = parseDiceNotation(savedDamage);
@@ -709,7 +751,11 @@ export default function App() {
       setAbilityRollBonus(0);
     }
 
-    setAbilityRollCost(2);
+    const limits = getAbilityCategoryLimits(
+      ability.category || 'Simples',
+      charInfo.controlLevel
+    );
+    setAbilityRollCost(limits.minCost);
   };
 
   const rollAbilityAttack = (ability) => {
@@ -726,7 +772,20 @@ export default function App() {
     if (!abilityRollModal) return;
 
     const ability = abilityRollModal;
-    const cost = Math.max(0, Number(abilityRollCost) || 0);
+    const limits = getAbilityCategoryLimits(
+      ability.category || 'Simples',
+      charInfo.controlLevel
+    );
+
+    let cost = Number(abilityRollCost) || 0;
+
+    // Garante que o custo respeita a faixa mínima/máxima da categoria
+    if (cost < limits.minCost) {
+      cost = limits.minCost;
+    }
+    if (limits.maxMult !== 999 && cost > limits.maxCostNum) {
+      cost = limits.maxCostNum;
+    }
 
     if (energy.current < cost) {
       alert(`Energia insuficiente. Você precisa de ${cost} de Energia.`);
@@ -741,7 +800,7 @@ export default function App() {
     if (ability.damage) {
       const { pools, bonus } = parseDiceNotation(abilityRollDamage || '1d6');
       executeRoll({
-        label: `Dano da habilidade: ${ability.name} — ${abilityRollTier}`,
+        label: `Dano da habilidade: ${ability.name} (${ability.category || 'Simples'})`,
         pools,
         bonus: bonus + Number(abilityRollBonus),
         isDamage: true,
@@ -750,7 +809,7 @@ export default function App() {
       const attr = ability.attr || 'Força';
       const attributeMod = getMod(attributes[attr] || 10);
       executeRoll({
-        label: `Habilidade: ${ability.name} — ${abilityRollTier}`,
+        label: `Habilidade: ${ability.name} (${ability.category || 'Simples'})`,
         pools: [{ qty: 1, sides: 20 }],
         bonus: attributeMod + Number(profBonus),
       });
@@ -764,6 +823,7 @@ export default function App() {
     setEditingAbilityId(null);
     setNewAbility({
       name: '',
+      category: 'Simples',
       attr: 'Força',
       damage: '1d6',
       area: '3m',
@@ -868,9 +928,7 @@ export default function App() {
     if (editingItemId !== null) {
       setInventory((prev) =>
         prev.map((oldItem) =>
-          oldItem.id === editingItemId
-            ? { ...oldItem, ...item }
-            : oldItem
+          oldItem.id === editingItemId ? { ...oldItem, ...item } : oldItem
         )
       );
     } else {
@@ -990,9 +1048,11 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans select-none">
       <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* CABEÇALHO */}
+        {/* CABEÇALHO COM INFORMAÇÕES DO PERSONAGEM */}
         <header className="bg-slate-900 border border-amber-500/30 p-6 rounded-xl shadow-lg space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+            
+            {/* Foto */}
             <div className="flex flex-col items-center justify-center space-y-2">
               {characterImage ? (
                 <img
@@ -1026,6 +1086,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Nome e Nível */}
             <div className="space-y-2">
               <input
                 value={charInfo.name}
@@ -1053,6 +1114,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Mutação e Classe Base */}
             <div className="grid grid-cols-1 gap-2 text-xs">
               <div>
                 <label className="text-slate-400 block mb-1">Mutação</label>
@@ -1084,6 +1146,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Proficiência e Classe Avançada */}
             <div className="space-y-2">
               <div className="flex items-center justify-between bg-slate-950 p-2 rounded border border-slate-800">
                 <span className="text-xs text-slate-400">Proficiência</span>
@@ -1106,8 +1169,50 @@ export default function App() {
                 />
               </div>
             </div>
+
+            {/* NOVOS CAMPOS: MOVIMENTAÇÃO E NÍVEL DE CONTROLE */}
+            <div className="space-y-2 bg-slate-950 p-3 rounded-lg border border-slate-800">
+              <div>
+                <label className="text-xs text-slate-400 flex items-center gap-1 mb-1">
+                  <Footprints className="w-3.5 h-3.5 text-amber-400" /> Movimentação
+                </label>
+                <input
+                  value={charInfo.movement || ''}
+                  onChange={(e) =>
+                    setCharInfo({ ...charInfo, movement: e.target.value })
+                  }
+                  placeholder="Ex: 9m / 6 sq"
+                  className="w-full bg-slate-900 border border-slate-800 p-1.5 rounded text-xs text-amber-300 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 flex items-center gap-1 mb-1">
+                  <Sliders className="w-3.5 h-3.5 text-cyan-400" /> Nível de Controle
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={charInfo.controlLevel ?? 0}
+                    onChange={(e) =>
+                      setCharInfo({
+                        ...charInfo,
+                        controlLevel: Math.max(0, Number(e.target.value) || 0),
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 p-1.5 rounded text-xs text-cyan-300 font-bold text-center"
+                  />
+                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                    Base: {Math.max(1, 16 - (Number(charInfo.controlLevel) || 0))}⚡
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
+          {/* STATUS PRINCIPAIS (HP, ENERGIA, CA) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-800 pt-4">
             <div className="bg-slate-950 border border-rose-900/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center text-rose-400 font-bold">
@@ -1952,7 +2057,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* CANVAS DE HABILIDADES (EXPANSÍVEL E REDIMENSIONÁVEL) */}
+            {/* CANVAS DE HABILIDADES */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <div>
@@ -1998,6 +2103,7 @@ export default function App() {
                     const posY = ability.y ?? 20;
                     const cardW = ability.w ?? 270;
                     const cardH = ability.h ?? 180;
+                    const badgeColor = getCategoryBadgeColor(ability.category);
 
                     return (
                       <div
@@ -2015,7 +2121,7 @@ export default function App() {
                             : 'border-cyan-900/60 z-10 hover:border-cyan-500'
                         } rounded-xl p-3 flex flex-col justify-between select-none transition-shadow`}
                       >
-                        {/* CAMEÇALHO DO CARD - ÁREA DE ARRASTE PARA MOVER */}
+                        {/* CAMEÇALHO DO CARD */}
                         <div
                           onPointerDown={(e) => handlePointerDownAbility(e, ability)}
                           onPointerMove={(e) => handlePointerMoveAbility(e, ability.id)}
@@ -2024,9 +2130,16 @@ export default function App() {
                         >
                           <div className="flex items-center gap-1.5 overflow-hidden">
                             <Move className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <h3 className="font-bold text-cyan-300 text-xs truncate">
-                              {ability.name}
-                            </h3>
+                            <div className="truncate">
+                              <h3 className="font-bold text-cyan-300 text-xs truncate">
+                                {ability.name}
+                              </h3>
+                              <span
+                                className={`text-[9px] border px-1.5 py-0.2 rounded font-bold uppercase ${badgeColor}`}
+                              >
+                                {ability.category || 'Simples'}
+                              </span>
+                            </div>
                           </div>
 
                           <div
@@ -2050,7 +2163,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* CORPO DO CARD COM SCROLL CASO O TAMANHO FIQUE PEQUENO */}
+                        {/* CORPO DO CARD */}
                         <div className="flex-1 overflow-y-auto space-y-1.5 text-xs text-slate-400 my-1 pr-1">
                           <p className="text-[10px] text-slate-500">
                             {ability.attr} · {ability.damage || 'Sem dano'}
@@ -2063,7 +2176,7 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* BOTAO DE ACAO */}
+                        {/* BOTÕES DE AÇÃO */}
                         <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80">
                           <button
                             onClick={() => rollAbilityAttack(ability)}
@@ -2079,7 +2192,7 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* ALÇA DE REDIMENSIONAMENTO DO CARD */}
+                        {/* ALÇA DE REDIMENSIONAMENTO */}
                         <div
                           onPointerDown={(e) => handleResizePointerDown(e, ability)}
                           onPointerMove={(e) => handleResizePointerMove(e, ability.id)}
@@ -2436,7 +2549,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE HABILIDADE */}
+      {/* MODAL DE HABILIDADE (SELEÇÃO DE CATEGORIA) */}
       {isAbilityModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2454,16 +2567,37 @@ export default function App() {
                 setNewAbility({ ...newAbility, name: e.target.value })
               }
               placeholder="Nome da habilidade"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">
+                Categoria da Habilidade
+              </label>
+              <select
+                value={newAbility.category}
+                onChange={(e) =>
+                  setNewAbility({ ...newAbility, category: e.target.value })
+                }
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-cyan-300 font-bold"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <input
               value={newAbility.damage}
               onChange={(e) =>
                 setNewAbility({ ...newAbility, damage: e.target.value })
               }
               placeholder="Dano base (ex: 2d6 + 3)"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
             <textarea
               value={newAbility.desc}
               onChange={(e) =>
@@ -2473,6 +2607,7 @@ export default function App() {
               rows={3}
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
             <button
               onClick={saveAbility}
               className="w-full bg-cyan-500 text-slate-950 font-bold py-2 rounded"
@@ -2483,82 +2618,118 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE USO DA HABILIDADE */}
-      {abilityRollModal && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold text-cyan-300">
-                  {abilityRollModal.name}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Configure o lançamento e consumo de energia
-                </p>
+      {/* MODAL DE USO DA HABILIDADE (CÁLCULO AUTOMÁTICO DE CUSTO LIMITADO) */}
+      {abilityRollModal && (() => {
+        const limits = getAbilityCategoryLimits(
+          abilityRollModal.category || 'Simples',
+          charInfo.controlLevel
+        );
+
+        return (
+          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-cyan-300">
+                      {abilityRollModal.name}
+                    </h3>
+                    <span
+                      className={`text-[10px] border px-2 py-0.5 rounded font-bold uppercase ${getCategoryBadgeColor(
+                        abilityRollModal.category
+                      )}`}
+                    >
+                      {abilityRollModal.category || 'Simples'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Custo limitado pela categoria e Nível de Controle ({charInfo.controlLevel})
+                  </p>
+                </div>
+                <button onClick={() => setAbilityRollModal(null)}>
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => setAbilityRollModal(null)}>
-                <X className="w-5 h-5" />
+
+              <div className="space-y-3">
+                <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                  <p className="text-xs text-slate-400">
+                    Custo Base: <strong className="text-cyan-300">{limits.base}⚡</strong> por multiplicador
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Faixa permitida ({abilityRollModal.category || 'Simples'}):{' '}
+                    <strong className="text-amber-400">
+                      {limits.minCost}⚡ até {limits.maxCost}⚡
+                    </strong>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">
+                    Custo de Energia Selecionado
+                  </label>
+                  <input
+                    type="number"
+                    min={limits.minCost}
+                    max={limits.maxMult === 999 ? undefined : limits.maxCostNum}
+                    value={abilityRollCost}
+                    onChange={(e) =>
+                      setAbilityRollCost(Number(e.target.value) || limits.minCost)
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-cyan-300 font-bold text-lg text-center"
+                  />
+                  <span className="text-[10px] text-slate-500 block text-center mt-1">
+                    Multiplicador equivalente: ~
+                    {limits.base > 0
+                      ? (abilityRollCost / limits.base).toFixed(1)
+                      : 0}
+                    x
+                  </span>
+                </div>
+
+                {abilityRollModal.damage && (
+                  <>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">
+                        Dados de Dano Personalizado (ex: 3d6, 1d12)
+                      </label>
+                      <input
+                        type="text"
+                        value={abilityRollDamage}
+                        onChange={(e) =>
+                          setAbilityRollDamage(e.target.value)
+                        }
+                        className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">
+                        Bônus Fixo (+/-)
+                      </label>
+                      <input
+                        type="number"
+                        value={abilityRollBonus}
+                        onChange={(e) =>
+                          setAbilityRollBonus(Number(e.target.value) || 0)
+                        }
+                        className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={confirmAbilityUse}
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3 rounded-lg shadow-lg"
+              >
+                Confirmar, Descontar {abilityRollCost}⚡ e Rolar
               </button>
             </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">
-                  Custo de Energia
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={abilityRollCost}
-                  onChange={(e) =>
-                    setAbilityRollCost(Number(e.target.value) || 0)
-                  }
-                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-cyan-300 font-bold"
-                />
-              </div>
-
-              {abilityRollModal.damage && (
-                <>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">
-                      Dados de Dano Personalizado (ex: 3d6, 1d12)
-                    </label>
-                    <input
-                      type="text"
-                      value={abilityRollDamage}
-                      onChange={(e) =>
-                        setAbilityRollDamage(e.target.value)
-                      }
-                      className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">
-                      Bônus Fixo (+/-)
-                    </label>
-                    <input
-                      type="number"
-                      value={abilityRollBonus}
-                      onChange={(e) =>
-                        setAbilityRollBonus(Number(e.target.value) || 0)
-                      }
-                      className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-amber-300 font-bold"
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <button
-              onClick={confirmAbilityUse}
-              className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black py-3 rounded-lg shadow-lg"
-            >
-              Confirmar, Descontar Energia e Rolar
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL DE PASSIVA/BUFF */}
       {isPassiveModalOpen && (
@@ -2592,7 +2763,7 @@ export default function App() {
                 }
                 className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-amber-300 font-bold"
               >
-                {PASSIVE_CATEGORIES.map((cat) => (
+                {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
