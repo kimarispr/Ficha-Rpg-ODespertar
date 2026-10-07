@@ -55,7 +55,7 @@ const CATEGORIES = [
   'Absoluta',
 ];
 
-// Função utilitária para calcular limites de gasto de energia
+// Função utilitária para calcular limites de gasto de energia com base na Categoria e Nível de Controle
 const getAbilityCategoryLimits = (category, controlLevel = 0) => {
   const ctrl = Math.max(0, Number(controlLevel) || 0);
   const base = Math.max(1, 16 - ctrl);
@@ -279,7 +279,7 @@ export default function App() {
   const [newPassive, setNewPassive] = useState({
     name: '',
     category: 'Simples',
-    reservedEnergy: 2,
+    reservedEnergy: 16,
     active: false,
     effect: '',
     desc: '',
@@ -779,7 +779,6 @@ export default function App() {
 
     let cost = Number(abilityRollCost) || 0;
 
-    // Garante que o custo respeita a faixa mínima/máxima da categoria
     if (cost < limits.minCost) {
       cost = limits.minCost;
     }
@@ -836,14 +835,29 @@ export default function App() {
     });
   };
 
+  // --- LÓGICA DE PASSIVAS E BUFFS ---
   const savePassive = () => {
     if (!newPassive.name.trim()) return;
+
+    const limits = getAbilityCategoryLimits(
+      newPassive.category || 'Simples',
+      charInfo.controlLevel
+    );
+
+    let cost = Number(newPassive.reservedEnergy) || 0;
+    if (cost < limits.minCost) cost = limits.minCost;
+    if (limits.maxMult !== 999 && cost > limits.maxCostNum) cost = limits.maxCostNum;
+
+    const passiveData = {
+      ...newPassive,
+      reservedEnergy: cost,
+    };
 
     if (editingPassiveId !== null) {
       setPassives((prev) =>
         prev.map((passive) =>
           passive.id === editingPassiveId
-            ? { ...passive, ...newPassive }
+            ? { ...passive, ...passiveData }
             : passive
         )
       );
@@ -851,7 +865,7 @@ export default function App() {
       setPassives((prev) => [
         ...prev,
         {
-          ...newPassive,
+          ...passiveData,
           id: Date.now(),
         },
       ]);
@@ -860,6 +874,7 @@ export default function App() {
     closePassiveModal();
   };
 
+  // ATIVAÇÃO / DESATIVAÇÃO DE PASSIVAS (AFETA A ENERGIA MÁXIMA)
   const togglePassiveActive = (passiveId) => {
     setPassives((prev) =>
       prev.map((p) => {
@@ -868,21 +883,27 @@ export default function App() {
         const reservedCost = Math.max(0, Number(p.reservedEnergy) || 0);
 
         if (!p.active) {
-          if (energy.current < reservedCost) {
+          if (energy.max < reservedCost) {
             alert(
-              `Energia insuficiente para ativar esta passiva! Você precisa de ${reservedCost} de energia.`
+              `Energia MÁXIMA insuficiente para ativar esta passiva! Você precisa de pelo menos ${reservedCost} de Energia Máxima disponível.`
             );
             return p;
           }
-          setEnergy((e) => ({
-            ...e,
-            current: Math.max(0, e.current - reservedCost),
-          }));
+          // Subtrai da ENERGIA MÁXIMA
+          setEnergy((e) => {
+            const newMax = Math.max(0, e.max - reservedCost);
+            return {
+              ...e,
+              max: newMax,
+              current: Math.min(e.current, newMax), // Ajusta a atual se ultrapassar o novo máximo
+            };
+          });
           return { ...p, active: true };
         } else {
+          // Devolve para a ENERGIA MÁXIMA
           setEnergy((e) => ({
             ...e,
-            current: Math.min(e.max, e.current + reservedCost),
+            max: e.max + reservedCost,
           }));
           return { ...p, active: false };
         }
@@ -891,10 +912,13 @@ export default function App() {
   };
 
   const editPassive = (passive) => {
+    const cat = passive.category || 'Simples';
+    const limits = getAbilityCategoryLimits(cat, charInfo.controlLevel);
+
     setNewPassive({
       name: passive.name || '',
-      category: passive.category || 'Simples',
-      reservedEnergy: passive.reservedEnergy || 0,
+      category: cat,
+      reservedEnergy: passive.reservedEnergy ?? limits.minCost,
       active: !!passive.active,
       effect: passive.effect || '',
       desc: passive.desc || '',
@@ -907,10 +931,11 @@ export default function App() {
   const closePassiveModal = () => {
     setIsPassiveModalOpen(false);
     setEditingPassiveId(null);
+    const limits = getAbilityCategoryLimits('Simples', charInfo.controlLevel);
     setNewPassive({
       name: '',
       category: 'Simples',
-      reservedEnergy: 2,
+      reservedEnergy: limits.minCost,
       active: false,
       effect: '',
       desc: '',
@@ -1170,7 +1195,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* NOVOS CAMPOS: MOVIMENTAÇÃO E NÍVEL DE CONTROLE */}
+            {/* MOVIMENTAÇÃO E NÍVEL DE CONTROLE */}
             <div className="space-y-2 bg-slate-950 p-3 rounded-lg border border-slate-800">
               <div>
                 <label className="text-xs text-slate-400 flex items-center gap-1 mb-1">
@@ -2223,6 +2248,15 @@ export default function App() {
               <button
                 onClick={() => {
                   setEditingPassiveId(null);
+                  const limits = getAbilityCategoryLimits('Simples', charInfo.controlLevel);
+                  setNewPassive({
+                    name: '',
+                    category: 'Simples',
+                    reservedEnergy: limits.minCost,
+                    active: false,
+                    effect: '',
+                    desc: '',
+                  });
                   setIsPassiveModalOpen(true);
                 }}
                 className="bg-amber-500 text-slate-950 font-bold px-3 py-2 rounded text-sm flex items-center gap-1"
@@ -2258,7 +2292,7 @@ export default function App() {
                               {passive.category || 'Simples'}
                             </span>
                             <span className="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded">
-                              ⚡ Reservado: {passive.reservedEnergy || 0}
+                              ⚡ Reduz da Máx: {passive.reservedEnergy || 0}
                             </span>
                           </div>
                           <h3 className="font-bold text-amber-300 mt-2">
@@ -2274,11 +2308,18 @@ export default function App() {
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() =>
+                            onClick={() => {
+                              if (passive.active) {
+                                // Se estiver ativa e for deletada, devolve a energia máxima
+                                setEnergy((e) => ({
+                                  ...e,
+                                  max: e.max + (Number(passive.reservedEnergy) || 0),
+                                }));
+                              }
                               setPassives(
                                 passives.filter((p) => p.id !== passive.id)
-                              )
-                            }
+                              );
+                            }}
                             className="text-slate-500 hover:text-rose-400"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -2307,7 +2348,7 @@ export default function App() {
                         }`}
                       >
                         {passive.active
-                          ? `ATIVA (Reservando ${passive.reservedEnergy || 0}⚡)`
+                          ? `ATIVA (Reduzindo ${passive.reservedEnergy || 0}⚡ do Máx)`
                           : 'INATIVA (Clique para Ativar)'}
                       </button>
                     </div>
@@ -2549,7 +2590,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE HABILIDADE (SELEÇÃO DE CATEGORIA) */}
+      {/* MODAL DE HABILIDADE */}
       {isAbilityModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2618,7 +2659,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE USO DA HABILIDADE (CÁLCULO AUTOMÁTICO DE CUSTO LIMITADO) */}
+      {/* MODAL DE USO DA HABILIDADE */}
       {abilityRollModal && (() => {
         const limits = getAbilityCategoryLimits(
           abilityRollModal.category || 'Simples',
@@ -2731,93 +2772,130 @@ export default function App() {
         );
       })()}
 
-      {/* MODAL DE PASSIVA/BUFF */}
-      {isPassiveModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex justify-between">
-              <h3 className="text-lg font-bold text-amber-400">
-                Cadastrar Passiva / Buff
-              </h3>
-              <button onClick={closePassiveModal}>
-                <X className="w-5 h-5" />
+      {/* MODAL DE PASSIVA/BUFF (COM CATEGORIA E LIMITES DE ENERGIA MÁXIMA) */}
+      {isPassiveModalOpen && (() => {
+        const limits = getAbilityCategoryLimits(
+          newPassive.category || 'Simples',
+          charInfo.controlLevel
+        );
+
+        return (
+          <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+              <div className="flex justify-between">
+                <h3 className="text-lg font-bold text-amber-400">
+                  Cadastrar Passiva / Buff
+                </h3>
+                <button onClick={closePassiveModal}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <input
+                value={newPassive.name}
+                onChange={(e) =>
+                  setNewPassive({ ...newPassive, name: e.target.value })
+                }
+                placeholder="Nome da passiva ou buff"
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
+              />
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Categoria
+                </label>
+                <select
+                  value={newPassive.category}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    const catLimits = getAbilityCategoryLimits(
+                      cat,
+                      charInfo.controlLevel
+                    );
+                    setNewPassive({
+                      ...newPassive,
+                      category: cat,
+                      reservedEnergy: catLimits.minCost,
+                    });
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-amber-300 font-bold"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+                <p className="text-xs text-slate-400">
+                  Custo Base: <strong className="text-cyan-300">{limits.base}⚡</strong> por multiplicador
+                </p>
+                <p className="text-xs text-slate-400">
+                  Faixa permitida ({newPassive.category || 'Simples'}):{' '}
+                  <strong className="text-amber-400">
+                    {limits.minCost}⚡ até {limits.maxCost}⚡
+                  </strong>
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Energia a Reservar (Reduzirá da Energia MÁXIMA)
+                </label>
+                <input
+                  type="number"
+                  min={limits.minCost}
+                  max={limits.maxMult === 999 ? undefined : limits.maxCostNum}
+                  value={newPassive.reservedEnergy}
+                  onChange={(e) =>
+                    setNewPassive({
+                      ...newPassive,
+                      reservedEnergy: Number(e.target.value) || limits.minCost,
+                    })
+                  }
+                  placeholder="Custo de energia reservada"
+                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm font-bold text-cyan-300 text-center"
+                />
+                <span className="text-[10px] text-slate-500 block text-center mt-1">
+                  Multiplicador equivalente: ~
+                  {limits.base > 0
+                    ? (newPassive.reservedEnergy / limits.base).toFixed(1)
+                    : 0}
+                  x
+                </span>
+              </div>
+
+              <input
+                value={newPassive.effect}
+                onChange={(e) =>
+                  setNewPassive({ ...newPassive, effect: e.target.value })
+                }
+                placeholder="Efeito (ex: +2 Defesa, Visão Noturna)"
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
+              />
+
+              <textarea
+                value={newPassive.desc}
+                onChange={(e) =>
+                  setNewPassive({ ...newPassive, desc: e.target.value })
+                }
+                placeholder="Descrição detalhada..."
+                rows={3}
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
+              />
+
+              <button
+                onClick={savePassive}
+                className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
+              >
+                Salvar Passiva
               </button>
             </div>
-            <input
-              value={newPassive.name}
-              onChange={(e) =>
-                setNewPassive({ ...newPassive, name: e.target.value })
-              }
-              placeholder="Nome da passiva ou buff"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
-            />
-
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">
-                Categoria
-              </label>
-              <select
-                value={newPassive.category}
-                onChange={(e) =>
-                  setNewPassive({ ...newPassive, category: e.target.value })
-                }
-                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-amber-300 font-bold"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">
-                Energia Reservada
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newPassive.reservedEnergy}
-                onChange={(e) =>
-                  setNewPassive({
-                    ...newPassive,
-                    reservedEnergy: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                placeholder="Custo de energia reservada"
-                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm font-bold text-cyan-300"
-              />
-            </div>
-
-            <input
-              value={newPassive.effect}
-              onChange={(e) =>
-                setNewPassive({ ...newPassive, effect: e.target.value })
-              }
-              placeholder="Efeito (ex: +2 Defesa, Visão Noturna)"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
-            />
-
-            <textarea
-              value={newPassive.desc}
-              onChange={(e) =>
-                setNewPassive({ ...newPassive, desc: e.target.value })
-              }
-              placeholder="Descrição detalhada..."
-              rows={3}
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
-            />
-
-            <button
-              onClick={savePassive}
-              className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
-            >
-              Salvar Passiva
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL DE ITEM */}
       {isItemModalOpen && (
