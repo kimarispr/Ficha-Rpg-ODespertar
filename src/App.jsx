@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Dices,
   History,
@@ -17,6 +17,8 @@ import {
   PackagePlus,
   Pencil,
   ShieldAlert,
+  Move,
+  LayoutGrid,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'ficha-rpg-local-v1';
@@ -40,6 +42,15 @@ const initialSkills = [
   { name: 'Prestidigitação', attr: 'Agilidade' },
   { name: 'Religião', attr: 'Inteligência' },
   { name: 'Sobrevivência', attr: 'Sabedoria' },
+];
+
+const PASSIVE_CATEGORIES = [
+  'Simples',
+  'Normal',
+  'Grande',
+  'Grandiosa',
+  'Suprema',
+  'Absoluta',
 ];
 
 const loadState = (key, fallback) => {
@@ -170,6 +181,25 @@ export default function App() {
   const [editingPassiveId, setEditingPassiveId] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
 
+  // Estados de Modificação para Dados Soltos com Múltiplos Pools
+  const [quickRollPools, setQuickRollPools] = useState(() =>
+    loadState('quickRollPools', [
+      { id: 1, qty: 1, sides: 6 },
+      { id: 2, qty: 1, sides: 12 },
+    ])
+  );
+  const [quickRollBonus, setQuickRollBonus] = useState(0);
+
+  // Estados de Recuperação de Energia Editável
+  const [energyRecQty, setEnergyRecQty] = useState(1);
+  const [energyRecSides, setEnergyRecSides] = useState(6);
+  const [energyRecBonus, setEnergyRecBonus] = useState(0);
+
+  // Estados para Canvas de Habilidades (Drag & Drop)
+  const canvasRef = useRef(null);
+  const [draggingAbilityId, setDraggingAbilityId] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
   const [newWeapon, setNewWeapon] = useState({
     name: '',
     dmg: '1d8',
@@ -185,15 +215,16 @@ export default function App() {
     area: '3m',
     dur: 'Instantânea',
     desc: '',
+    x: 20,
+    y: 20,
   });
 
   const [newPassive, setNewPassive] = useState({
     name: '',
-    type: 'Passiva',
+    category: 'Simples',
+    reservedEnergy: 2,
     active: false,
     effect: '',
-    area: 'Pessoal',
-    dur: 'Permanente',
     desc: '',
   });
 
@@ -210,11 +241,6 @@ export default function App() {
   const [abilityRollBonus, setAbilityRollBonus] = useState(0);
   const [abilityRollCost, setAbilityRollCost] = useState(2);
 
-  // Estados para Rolagem Solta
-  const [quickRollQty, setQuickRollQty] = useState(1);
-  const [quickRollSides, setQuickRollSides] = useState(20);
-  const [quickRollBonus, setQuickRollBonus] = useState(0);
-
   useEffect(() => {
     const level = Math.max(1, Number(charInfo.level) || 1);
     const newPower = level * 5;
@@ -224,6 +250,18 @@ export default function App() {
       Poder: newPower,
     }));
   }, [charInfo.level]);
+
+  useEffect(() => {
+    // Configura os valores padrão iniciais de recuperação de energia
+    const defaultDiceCount = Math.max(
+      1,
+      Math.floor(Math.max(0, Number(energy.max) || 0) / 20)
+    );
+    const defaultBonus = Math.floor((Number(attributes.Poder) || 0) / 2);
+
+    setEnergyRecQty(defaultDiceCount);
+    setEnergyRecBonus(defaultBonus);
+  }, [energy.max, attributes.Poder]);
 
   useEffect(() => {
     try {
@@ -250,6 +288,7 @@ export default function App() {
           history,
           deathSaves,
           characterImage,
+          quickRollPools,
         })
       );
     } catch (error) {
@@ -276,157 +315,180 @@ export default function App() {
     history,
     deathSaves,
     characterImage,
+    quickRollPools,
   ]);
 
   const getMod = (value) => Math.floor((Number(value) - 10) / 2);
 
-  const triggerRoll = ({
-    label,
-    diceRoll,
-    mod = 0,
-    isDamage = false,
-    notation = '',
-    rolls = null,
-  }) => {
-    const total = diceRoll + mod;
+  // Calcula a proficiência somando Atributo + Bônus Proficiência + Ajuste Manual
+  const getSkillTotal = (skill) => {
+    const attrMod = getMod(attributes[skill.attr] || 10);
+    const isProf = proficientSkills.includes(skill.name);
+    const profVal = isProf ? Number(profBonus) || 0 : 0;
+    const manualVal =
+      skillManualValues[skill.name] !== undefined &&
+      skillManualValues[skill.name] !== ''
+        ? Number(skillManualValues[skill.name]) || 0
+        : 0;
 
-    const data = {
+    return attrMod + profVal + manualVal;
+  };
+
+  // Motor Central de Rolagem de Dados com Formatação Detalhada Ex: 6, 12 + 8 = 26
+  const executeRoll = ({ label, pools = [], bonus = 0, isDamage = false }) => {
+    let allRolls = [];
+
+    pools.forEach((pool) => {
+      const q = Math.max(1, Number(pool.qty) || 1);
+      const s = Math.max(2, Number(pool.sides) || 6);
+      for (let i = 0; i < q; i++) {
+        allRolls.push(Math.floor(Math.random() * s) + 1);
+      }
+    });
+
+    const diceSum = allRolls.reduce((a, b) => a + b, 0);
+    const total = diceSum + bonus;
+
+    // Formatação do cálculo em texto separado
+    let breakdown = allRolls.join(', ');
+    if (bonus > 0) {
+      breakdown += ` + ${bonus}`;
+    } else if (bonus < 0) {
+      breakdown += ` - ${Math.abs(bonus)}`;
+    }
+    breakdown += ` = ${total}`;
+
+    const rollData = {
       id: Date.now() + Math.random(),
       label,
-      diceRoll,
-      mod,
+      allRolls,
+      diceSum,
+      bonus,
       total,
+      breakdown,
       isDamage,
-      notation,
-      rolls,
       time: new Date().toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
       }),
-      isCrit: !isDamage && diceRoll === 20,
-      isFail: !isDamage && diceRoll === 1,
+      isCrit: !isDamage && allRolls.length === 1 && allRolls[0] === 20,
+      isFail: !isDamage && allRolls.length === 1 && allRolls[0] === 1,
     };
 
-    setRollHistory((prev) => [data, ...prev]);
-    setActiveRollResult(data);
+    setRollHistory((prev) => [rollData, ...prev]);
+    setActiveRollResult(rollData);
+    return total;
   };
 
-  const rollD20 = (mod, label) => {
-    const result = Math.floor(Math.random() * 20) + 1;
-    triggerRoll({
-      label,
-      diceRoll: result,
-      mod,
-    });
+  // Parser de Expressões de Dados (Ex: "3d6 + 2d8 + 5" ou "1d8")
+  const parseDiceNotation = (notation) => {
+    if (!notation) return { pools: [], bonus: 0 };
+    const pools = [];
+    let bonus = 0;
+
+    const diceRegex = /(\d+)\s*d\s*(\d+)/gi;
+    let match;
+
+    while ((match = diceRegex.exec(notation)) !== null) {
+      pools.push({
+        qty: Math.max(1, Number(match[1])),
+        sides: Math.max(2, Number(match[2])),
+      });
+    }
+
+    const bonusStr = notation.replace(/(\d+)\s*d\s*(\d+)/gi, '');
+    const numbers = bonusStr.match(/([+-]?\s*\d+)/g);
+    if (numbers) {
+      numbers.forEach((num) => {
+        const cleaned = num.replace(/\s+/g, '');
+        bonus += Number(cleaned) || 0;
+      });
+    }
+
+    if (pools.length === 0) {
+      pools.push({ qty: 1, sides: 20 });
+    }
+
+    return { pools, bonus };
   };
 
   const rollAttribute = (attrName) => {
     if (attrName === 'Poder') return;
-    const value = attributes[attrName] || 10;
-    const mod = getMod(value);
-    rollD20(mod, `Atributo: ${attrName}`);
+    const mod = getMod(attributes[attrName] || 10);
+    executeRoll({
+      label: `Atributo: ${attrName}`,
+      pools: [{ qty: 1, sides: 20 }],
+      bonus: mod,
+    });
   };
 
-  const rollDamage = (notation, label) => {
-    const match = String(notation)
-      .trim()
-      .match(/^(\d+)\s*d\s*(\d+)(?:\s*([+-])\s*(\d+))?$/i);
+  const rollSkill = (skill) => {
+    const totalBonus = getSkillTotal(skill);
+    executeRoll({
+      label: `Perícia: ${skill.name}`,
+      pools: [{ qty: 1, sides: 20 }],
+      bonus: totalBonus,
+    });
+  };
 
-    if (!match) {
-      alert('Use uma notação como 1d8, 2d6 ou 4d10 + 5.');
-      return;
-    }
+  const rollWeaponAttack = (weapon) => {
+    const mod = getMod(attributes[weapon.attr] || 10);
+    executeRoll({
+      label: `Ataque: ${weapon.name}`,
+      pools: [{ qty: 1, sides: 20 }],
+      bonus: mod + Number(profBonus),
+    });
+  };
 
-    const count = Math.max(1, Math.min(100, Number(match[1])));
-    const sides = Math.max(2, Math.min(1000, Number(match[2])));
-    let bonus = Number(match[4]) || 0;
-
-    if (match[3] === '-') {
-      bonus *= -1;
-    }
-
-    const rolls = Array.from(
-      { length: count },
-      () => Math.floor(Math.random() * sides) + 1
-    );
-
-    const diceTotal = rolls.reduce(
-      (total, value) => total + value,
-      0
-    );
-
-    triggerRoll({
-      label: `Dano: ${label}`,
-      diceRoll: diceTotal,
-      mod: bonus,
+  const rollWeaponDamage = (weapon) => {
+    const { pools, bonus } = parseDiceNotation(weapon.dmg || '1d8');
+    executeRoll({
+      label: `Dano: ${weapon.name}`,
+      pools,
+      bonus,
       isDamage: true,
-      notation: `${count}d${sides}${
-        bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`
-      }`,
-      rolls,
     });
   };
 
   const handleQuickRoll = () => {
-    const qty = Math.max(1, Number(quickRollQty) || 1);
-    const sides = Number(quickRollSides) || 20;
-    const bonus = Number(quickRollBonus) || 0;
-
-    const rolls = Array.from(
-      { length: qty },
-      () => Math.floor(Math.random() * sides) + 1
-    );
-
-    const diceTotal = rolls.reduce((sum, val) => sum + val, 0);
-
-    triggerRoll({
-      label: `Rolagem Solta`,
-      diceRoll: diceTotal,
-      mod: bonus,
-      isDamage: true,
-      notation: `${qty}d${sides}${bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`}`,
-      rolls,
+    executeRoll({
+      label: 'Rolagem Solta',
+      pools: quickRollPools,
+      bonus: Number(quickRollBonus) || 0,
     });
   };
 
-  const energyRecoveryDice = Math.floor(
-    Math.max(0, Number(energy.max) || 0) / 20
-  );
+  const addQuickRollPool = () => {
+    setQuickRollPools((prev) => [
+      ...prev,
+      { id: Date.now(), qty: 1, sides: 6 },
+    ]);
+  };
 
-  const energyRecoveryBonus = Math.floor(
-    (Number(attributes.Poder) || 0) / 2
-  );
+  const removeQuickRollPool = (id) => {
+    if (quickRollPools.length <= 1) return;
+    setQuickRollPools((prev) => prev.filter((p) => p.id !== id));
+  };
 
   const recoverEnergy = () => {
-    const diceCount = energyRecoveryDice;
-    const rolls = Array.from(
-      { length: diceCount },
-      () => Math.floor(Math.random() * 6) + 1
-    );
+    const q = Math.max(1, Number(energyRecQty) || 1);
+    const s = Math.max(2, Number(energyRecSides) || 6);
+    const b = Number(energyRecBonus) || 0;
 
-    const diceTotal = rolls.reduce(
-      (total, value) => total + value,
-      0
-    );
-
-    const recovery = diceTotal + energyRecoveryBonus;
+    const recoveredTotal = executeRoll({
+      label: 'Recuperação de Energia',
+      pools: [{ qty: q, sides: s }],
+      bonus: b,
+    });
 
     setEnergy((prev) => ({
       ...prev,
       current: Math.min(
         Number(prev.max) || 0,
-        Math.max(0, Number(prev.current) || 0) + recovery
+        Math.max(0, Number(prev.current) || 0) + recoveredTotal
       ),
     }));
-
-    triggerRoll({
-      label: 'Recuperação de Energia',
-      diceRoll: diceTotal,
-      mod: energyRecoveryBonus,
-      notation: `${diceCount}d6 + ${energyRecoveryBonus}`,
-      rolls,
-    });
   };
 
   const toggleSkillProf = (skillName) => {
@@ -437,24 +499,55 @@ export default function App() {
     );
   };
 
-  const rollSkill = (skill) => {
-    const manual = skillManualValues[skill.name];
+  // Funções para Drag & Drop do Canvas de Habilidades
+  const handlePointerDownAbility = (e, ability) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDraggingAbilityId(ability.id);
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
 
-    if (
-      manual !== undefined &&
-      manual !== '' &&
-      !Number.isNaN(Number(manual))
-    ) {
-      rollD20(Number(manual), `Perícia: ${skill.name}`);
-      return;
+  const handlePointerMoveAbility = (e, abilityId) => {
+    if (draggingAbilityId !== abilityId || !canvasRef.current) return;
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+
+    const newX = Math.max(
+      0,
+      Math.min(canvasRect.width - 270, e.clientX - canvasRect.left - dragOffset.x)
+    );
+    const newY = Math.max(
+      0,
+      Math.min(canvasRect.height - 180, e.clientY - canvasRect.top - dragOffset.y)
+    );
+
+    setAbilities((prev) =>
+      prev.map((a) => (a.id === abilityId ? { ...a, x: newX, y: newY } : a))
+    );
+  };
+
+  const handlePointerUpAbility = (e) => {
+    if (draggingAbilityId) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignora erros caso o ponteiro já tenha sido liberado
+      }
+      setDraggingAbilityId(null);
     }
+  };
 
-    const attributeMod = getMod(attributes[skill.attr] || 10);
-    const proficiency = proficientSkills.includes(skill.name)
-      ? Number(profBonus)
-      : 0;
-
-    rollD20(attributeMod + proficiency, `Perícia: ${skill.name}`);
+  const autoArrangeAbilities = () => {
+    setAbilities((prev) =>
+      prev.map((ability, idx) => ({
+        ...ability,
+        x: 20 + (idx % 2) * 290,
+        y: 20 + Math.floor(idx / 2) * 200,
+      }))
+    );
   };
 
   const saveWeapon = () => {
@@ -494,15 +587,6 @@ export default function App() {
     setIsWeaponModalOpen(true);
   };
 
-  const rollWeaponAttack = (weapon) => {
-    const mod = getMod(attributes[weapon.attr] || 10);
-    rollD20(mod + Number(profBonus), `Ataque: ${weapon.name}`);
-  };
-
-  const rollWeaponDamage = (weapon) => {
-    rollDamage(weapon.dmg || '1d8', weapon.name);
-  };
-
   const closeWeaponModal = () => {
     setIsWeaponModalOpen(false);
     setEditingWeaponId(null);
@@ -532,6 +616,8 @@ export default function App() {
         {
           ...newAbility,
           id: Date.now(),
+          x: 20 + (prev.length % 2) * 290,
+          y: 20 + Math.floor(prev.length / 2) * 200,
         },
       ]);
     }
@@ -547,6 +633,8 @@ export default function App() {
       area: ability.area || '3m',
       dur: ability.dur || 'Instantânea',
       desc: ability.desc || '',
+      x: ability.x || 20,
+      y: ability.y || 20,
     });
 
     setEditingAbilityId(ability.id);
@@ -558,14 +646,10 @@ export default function App() {
     setAbilityRollTier('Simples');
 
     const savedDamage = String(ability.damage || '1d6').trim();
-    const match = savedDamage.match(
-      /^(\d+\s*d\s*\d+)(?:\s*([+-])\s*(\d+))?$/i
-    );
+    const { pools, bonus } = parseDiceNotation(savedDamage);
 
-    if (match) {
-      setAbilityRollDamage(match[1].replace(/\s+/g, ''));
-      let bonus = Number(match[3]) || 0;
-      if (match[2] === '-') bonus *= -1;
+    if (pools.length > 0) {
+      setAbilityRollDamage(`${pools[0].qty}d${pools[0].sides}`);
       setAbilityRollBonus(bonus);
     } else {
       setAbilityRollDamage('1d6');
@@ -578,8 +662,11 @@ export default function App() {
   const rollAbilityAttack = (ability) => {
     const attr = ability.attr || 'Força';
     const attributeMod = getMod(attributes[attr] || 10);
-    const modifier = attributeMod + Number(profBonus);
-    rollD20(modifier, `Acerto da habilidade: ${ability.name}`);
+    executeRoll({
+      label: `Acerto da habilidade: ${ability.name}`,
+      pools: [{ qty: 1, sides: 20 }],
+      bonus: attributeMod + Number(profBonus),
+    });
   };
 
   const confirmAbilityUse = () => {
@@ -593,60 +680,29 @@ export default function App() {
       return;
     }
 
-    if (ability.damage) {
-      const match = String(abilityRollDamage)
-        .trim()
-        .match(/^(\d+)\s*d\s*(\d+)$/i);
-
-      if (!match) {
-        alert('Informe os dados no formato NdN. Exemplo: 4d8.');
-        return;
-      }
-
-      const count = Math.max(1, Math.min(100, Number(match[1])));
-      const sides = Math.max(2, Math.min(1000, Number(match[2])));
-      const bonus = Number(abilityRollBonus) || 0;
-
-      const rolls = Array.from(
-        { length: count },
-        () => Math.floor(Math.random() * sides) + 1
-      );
-
-      const diceTotal = rolls.reduce(
-        (sum, value) => sum + value,
-        0
-      );
-
-      setEnergy((prev) => ({
-        ...prev,
-        current: Math.max(0, prev.current - cost),
-      }));
-
-      triggerRoll({
-        label: `Dano da habilidade: ${ability.name} — ${abilityRollTier}`,
-        diceRoll: diceTotal,
-        mod: bonus,
-        isDamage: true,
-        notation: `${count}d${sides}${
-          bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`
-        }`,
-        rolls,
-      });
-
-      setAbilityRollModal(null);
-      return;
-    }
-
-    const attr = ability.attr || 'Força';
-    const attributeMod = getMod(attributes[attr] || 10);
-    const modifier = attributeMod + Number(profBonus);
-
     setEnergy((prev) => ({
       ...prev,
       current: Math.max(0, prev.current - cost),
     }));
 
-    rollD20(modifier, `Habilidade: ${ability.name} — ${abilityRollTier}`);
+    if (ability.damage) {
+      const { pools, bonus } = parseDiceNotation(abilityRollDamage || '1d6');
+      executeRoll({
+        label: `Dano da habilidade: ${ability.name} — ${abilityRollTier}`,
+        pools,
+        bonus: bonus + Number(abilityRollBonus),
+        isDamage: true,
+      });
+    } else {
+      const attr = ability.attr || 'Força';
+      const attributeMod = getMod(attributes[attr] || 10);
+      executeRoll({
+        label: `Habilidade: ${ability.name} — ${abilityRollTier}`,
+        pools: [{ qty: 1, sides: 20 }],
+        bonus: attributeMod + Number(profBonus),
+      });
+    }
+
     setAbilityRollModal(null);
   };
 
@@ -660,9 +716,12 @@ export default function App() {
       area: '3m',
       dur: 'Instantânea',
       desc: '',
+      x: 20,
+      y: 20,
     });
   };
 
+  // Gerenciamento de Passivas & Desconto de Energia em Tempo Real
   const savePassive = () => {
     if (!newPassive.name.trim()) return;
 
@@ -687,14 +746,43 @@ export default function App() {
     closePassiveModal();
   };
 
+  const togglePassiveActive = (passiveId) => {
+    setPassives((prev) =>
+      prev.map((p) => {
+        if (p.id !== passiveId) return p;
+
+        const reservedCost = Math.max(0, Number(p.reservedEnergy) || 0);
+
+        if (!p.active) {
+          if (energy.current < reservedCost) {
+            alert(
+              `Energia insuficiente para ativar esta passiva! Você precisa de ${reservedCost} de energia.`
+            );
+            return p;
+          }
+          setEnergy((e) => ({
+            ...e,
+            current: Math.max(0, e.current - reservedCost),
+          }));
+          return { ...p, active: true };
+        } else {
+          setEnergy((e) => ({
+            ...e,
+            current: Math.min(e.max, e.current + reservedCost),
+          }));
+          return { ...p, active: false };
+        }
+      })
+    );
+  };
+
   const editPassive = (passive) => {
     setNewPassive({
       name: passive.name || '',
-      type: passive.type || 'Passiva',
+      category: passive.category || 'Simples',
+      reservedEnergy: passive.reservedEnergy || 0,
       active: !!passive.active,
       effect: passive.effect || '',
-      area: passive.area || 'Pessoal',
-      dur: passive.dur || 'Permanente',
       desc: passive.desc || '',
     });
 
@@ -707,11 +795,10 @@ export default function App() {
     setEditingPassiveId(null);
     setNewPassive({
       name: '',
-      type: 'Passiva',
+      category: 'Simples',
+      reservedEnergy: 2,
       active: false,
       effect: '',
-      area: 'Pessoal',
-      dur: 'Permanente',
       desc: '',
     });
   };
@@ -818,6 +905,25 @@ export default function App() {
     window.location.reload();
   };
 
+  const getCategoryBadgeColor = (cat) => {
+    switch (cat) {
+      case 'Simples':
+        return 'bg-slate-800 text-slate-300 border-slate-700';
+      case 'Normal':
+        return 'bg-cyan-950 text-cyan-300 border-cyan-800';
+      case 'Grande':
+        return 'bg-blue-950 text-blue-300 border-blue-800';
+      case 'Grandiosa':
+        return 'bg-purple-950 text-purple-300 border-purple-800';
+      case 'Suprema':
+        return 'bg-amber-950 text-amber-300 border-amber-800';
+      case 'Absoluta':
+        return 'bg-rose-950 text-rose-300 border-rose-800';
+      default:
+        return 'bg-slate-800 text-slate-300 border-slate-700';
+    }
+  };
+
   const tabs = [
     { id: 'geral', label: 'Geral & Atributos', icon: User },
     { id: 'combate', label: 'Combate & Habilidades', icon: Swords },
@@ -827,7 +933,7 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans select-none">
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* CABEÇALHO */}
@@ -976,7 +1082,7 @@ export default function App() {
               </div>
               <div className="h-2 bg-slate-800 rounded overflow-hidden">
                 <div
-                  className="h-full bg-rose-600"
+                  className="h-full bg-rose-600 transition-all duration-300"
                   style={{
                     width: `${
                       hp.max > 0
@@ -1055,7 +1161,7 @@ export default function App() {
               </div>
               <div className="h-2 bg-slate-800 rounded overflow-hidden">
                 <div
-                  className="h-full bg-cyan-500"
+                  className="h-full bg-cyan-500 transition-all duration-300"
                   style={{
                     width: `${
                       energy.max > 0
@@ -1180,7 +1286,9 @@ export default function App() {
                             100,
                             Math.max(
                               0,
-                              (resistancePhysical.current / resistancePhysical.max) * 100
+                              (resistancePhysical.current /
+                                resistancePhysical.max) *
+                                100
                             )
                           )
                         : 0
@@ -1277,7 +1385,9 @@ export default function App() {
                             100,
                             Math.max(
                               0,
-                              (resistanceSpiritual.current / resistanceSpiritual.max) * 100
+                              (resistanceSpiritual.current /
+                                resistanceSpiritual.max) *
+                                100
                             )
                           )
                         : 0
@@ -1437,15 +1547,15 @@ export default function App() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400">Perícias</h2>
                 <span className="text-xs text-slate-500">
-                  Clique no dado para rolar
+                  Bônus total atualizado dinamicamente
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {initialSkills.map((skill) => {
-                  const modifier = getMod(attributes[skill.attr] || 10);
                   const proficient = proficientSkills.includes(skill.name);
                   const manual = skillManualValues[skill.name];
+                  const totalVal = getSkillTotal(skill);
 
                   return (
                     <div
@@ -1453,16 +1563,19 @@ export default function App() {
                       className="bg-slate-950 border border-slate-800 rounded p-3 flex items-center justify-between"
                     >
                       <div>
-                        <p className="font-semibold text-sm">{skill.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm">{skill.name}</p>
+                          <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                            {totalVal >= 0 ? `+${totalVal}` : totalVal}
+                          </span>
+                        </div>
                         <p className="text-[10px] text-slate-500">{skill.attr}</p>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          placeholder={
-                            modifier >= 0 ? `+${modifier}` : String(modifier)
-                          }
+                          placeholder="Manual"
                           value={manual ?? ''}
                           onChange={(e) =>
                             setSkillManualValues((prev) => ({
@@ -1470,18 +1583,18 @@ export default function App() {
                               [skill.name]: e.target.value,
                             }))
                           }
-                          className="w-14 bg-slate-900 rounded text-center text-xs"
+                          className="w-14 bg-slate-900 rounded text-center text-xs p-1"
                         />
 
                         <button
                           onClick={() => toggleSkillProf(skill.name)}
-                          className={`text-[10px] px-2 py-1 rounded ${
+                          className={`text-[10px] px-2 py-1 rounded font-bold transition-colors ${
                             proficient
-                              ? 'bg-emerald-900 text-emerald-300'
-                              : 'bg-slate-800 text-slate-500'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-800 text-slate-500 hover:text-slate-300'
                           }`}
                         >
-                          {proficient ? 'Prof.' : '—'}
+                          {proficient ? `Prof. (+${profBonus})` : '—'}
                         </button>
 
                         <button
@@ -1549,60 +1662,97 @@ export default function App() {
           </div>
         )}
 
-        {/* COMBATE */}
+        {/* COMBATE & HABILIDADES */}
         {activeTab === 'combate' && (
           <div className="space-y-6">
 
-            {/* SEÇÃO DE ROLAGEM DE DADOS SOLTOS */}
+            {/* ROLAGEM DE DADOS SOLTOS (MÚLTIPLOS POOLS) */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-              <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2 mb-4">
-                <Dices className="w-5 h-5" /> Rolagem de Dados Soltos
-              </h2>
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="flex flex-col">
-                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Qtd.</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quickRollQty}
-                    onChange={(e) => setQuickRollQty(Number(e.target.value) || 1)}
-                    className="w-16 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none text-center"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Dado</label>
-                  <select
-                    value={quickRollSides}
-                    onChange={(e) => setQuickRollSides(Number(e.target.value))}
-                    className="w-24 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none"
-                  >
-                    <option value={4}>d4</option>
-                    <option value={6}>d6</option>
-                    <option value={8}>d8</option>
-                    <option value={10}>d10</option>
-                    <option value={12}>d12</option>
-                    <option value={20}>d20</option>
-                    <option value={100}>d100</option>
-                  </select>
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">Bônus</label>
-                  <input
-                    type="number"
-                    value={quickRollBonus}
-                    onChange={(e) => setQuickRollBonus(Number(e.target.value) || 0)}
-                    className="w-20 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded focus:border-amber-500 outline-none text-center"
-                  />
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                  <Dices className="w-5 h-5" /> Rolagem de Dados Soltos
+                </h2>
                 <button
-                  onClick={handleQuickRoll}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-2 rounded flex items-center gap-2"
+                  onClick={addQuickRollPool}
+                  className="text-xs bg-slate-800 hover:bg-slate-700 text-amber-300 px-3 py-1.5 rounded flex items-center gap-1 border border-slate-700"
                 >
-                  Rolar
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Dado
                 </button>
+              </div>
+
+              <div className="space-y-3">
+                {quickRollPools.map((pool, idx) => (
+                  <div key={pool.id} className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500 w-6">#{idx + 1}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={pool.qty}
+                        onChange={(e) => {
+                          const val = Math.max(1, Number(e.target.value) || 1);
+                          setQuickRollPools((prev) =>
+                            prev.map((p) => (p.id === pool.id ? { ...p, qty: val } : p))
+                          );
+                        }}
+                        className="w-16 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded text-center text-sm"
+                      />
+                      <span className="text-xs text-slate-400 font-bold">d</span>
+                      <select
+                        value={pool.sides}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setQuickRollPools((prev) =>
+                            prev.map((p) => (p.id === pool.id ? { ...p, sides: val } : p))
+                          );
+                        }}
+                        className="w-24 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded text-sm"
+                      >
+                        <option value={4}>d4</option>
+                        <option value={6}>d6</option>
+                        <option value={8}>d8</option>
+                        <option value={10}>d10</option>
+                        <option value={12}>d12</option>
+                        <option value={20}>d20</option>
+                        <option value={100}>d100</option>
+                      </select>
+                    </div>
+
+                    {quickRollPools.length > 1 && (
+                      <button
+                        onClick={() => removeQuickRollPool(pool.id)}
+                        className="text-slate-500 hover:text-rose-400 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex flex-wrap items-end gap-4 border-t border-slate-800 pt-4 mt-2">
+                  <div className="flex flex-col">
+                    <label className="text-xs text-slate-400 mb-1 uppercase font-semibold">
+                      Bônus Geral (+/-)
+                    </label>
+                    <input
+                      type="number"
+                      value={quickRollBonus}
+                      onChange={(e) => setQuickRollBonus(Number(e.target.value) || 0)}
+                      className="w-24 bg-slate-950 border border-slate-800 text-amber-300 p-2 rounded text-center text-sm font-bold"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleQuickRoll}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-2 rounded flex items-center gap-2"
+                  >
+                    Rolar Todos os Dados
+                  </button>
+                </div>
               </div>
             </section>
 
+            {/* SEÇÃO DE ARMAS */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
@@ -1690,6 +1840,7 @@ export default function App() {
               )}
             </section>
 
+            {/* RECUPERAÇÃO DE ENERGIA CUSTOMIZÁVEL */}
             <section className="bg-slate-900 border border-cyan-800/50 rounded-xl p-6">
               <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
@@ -1697,15 +1848,46 @@ export default function App() {
                     <Zap className="w-5 h-5" /> Recuperação de Energia
                   </h2>
                   <p className="text-sm text-slate-400 mt-1">
-                    Ao terminar o turno, use o botão para recuperar Energia.
+                    Ajuste os valores para realizar o cálculo automático e preencher a barra.
                   </p>
-                  <p className="text-xs text-slate-500 mt-2">
-                    Fórmula:{' '}
-                    <strong className="text-cyan-300">
-                      {energyRecoveryDice}d6 + {energyRecoveryBonus}
-                    </strong>
-                  </p>
+                  
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-slate-400">Qtd:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={energyRecQty}
+                        onChange={(e) => setEnergyRecQty(Number(e.target.value) || 1)}
+                        className="w-14 bg-slate-950 border border-slate-800 text-cyan-300 p-1 text-center text-xs rounded"
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400">d</span>
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={energyRecSides}
+                        onChange={(e) => setEnergyRecSides(Number(e.target.value))}
+                        className="bg-slate-950 border border-slate-800 text-cyan-300 p-1 text-xs rounded"
+                      >
+                        <option value={4}>4</option>
+                        <option value={6}>6</option>
+                        <option value={8}>8</option>
+                        <option value={10}>10</option>
+                        <option value={12}>12</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-slate-400">+ Bônus:</span>
+                      <input
+                        type="number"
+                        value={energyRecBonus}
+                        onChange={(e) => setEnergyRecBonus(Number(e.target.value) || 0)}
+                        className="w-14 bg-slate-950 border border-slate-800 text-cyan-300 p-1 text-center text-xs rounded"
+                      />
+                    </div>
+                  </div>
                 </div>
+
                 <button
                   onClick={recoverEnergy}
                   disabled={energy.current >= energy.max}
@@ -1716,87 +1898,119 @@ export default function App() {
               </div>
             </section>
 
+            {/* HABILIDADES / MAGIAS COM CANVAS ARRASTÁVEL */}
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-cyan-300 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" /> Habilidades / Magias
-                </h2>
-                <button
-                  onClick={() => {
-                    setEditingAbilityId(null);
-                    setIsAbilityModalOpen(true);
-                  }}
-                  className="bg-cyan-500 text-slate-950 font-bold px-3 py-2 rounded text-sm flex items-center gap-1"
-                >
-                  <Plus className="w-4 h-4" /> Adicionar Habilidade
-                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-cyan-300 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5" /> Canvas de Habilidades
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Arraste os cards livremente dentro do espaço demarcado.
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={autoArrangeAbilities}
+                    className="bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs px-3 py-2 rounded flex items-center gap-1"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" /> Organizar Grade
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingAbilityId(null);
+                      setIsAbilityModalOpen(true);
+                    }}
+                    className="bg-cyan-500 text-slate-950 font-bold px-3 py-2 rounded text-sm flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" /> Adicionar
+                  </button>
+                </div>
               </div>
 
               {abilities.length === 0 ? (
-                <div className="text-center text-sm text-slate-500 border border-dashed border-slate-700 rounded-lg p-6">
-                  Nenhuma habilidade cadastrada.
+                <div className="text-center text-sm text-slate-500 border border-dashed border-slate-700 rounded-lg p-8">
+                  Nenhuma habilidade cadastrada no canvas.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {abilities.map((ability) => (
-                    <div
-                      key={ability.id}
-                      className="bg-slate-950 border border-cyan-900/50 rounded-lg p-4 space-y-3"
-                    >
-                      <div className="flex justify-between gap-2">
-                        <div>
-                          <h3 className="font-bold text-cyan-300">
-                            {ability.name}
-                          </h3>
-                          <p className="text-xs text-slate-500">
-                            Atributo: {ability.attr}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Dano cadastrado: {ability.damage || 'Sem dano'}
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => editAbility(ability)}
-                            className="text-slate-500 hover:text-cyan-300"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setAbilities(
-                                abilities.filter((a) => a.id !== ability.id)
-                              )
-                            }
-                            className="text-slate-500 hover:text-rose-400"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+                <div
+                  ref={canvasRef}
+                  className="relative w-full h-[540px] bg-slate-950/80 border-2 border-dashed border-cyan-900/40 rounded-xl overflow-hidden shadow-inner p-4"
+                >
+                  {abilities.map((ability) => {
+                    const posX = ability.x ?? 20;
+                    const posY = ability.y ?? 20;
 
-                      {ability.desc && (
-                        <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
-                          {ability.desc}
+                    return (
+                      <div
+                        key={ability.id}
+                        style={{
+                          position: 'absolute',
+                          left: `${posX}px`,
+                          top: `${posY}px`,
+                        }}
+                        onPointerDown={(e) => handlePointerDownAbility(e, ability)}
+                        onPointerMove={(e) => handlePointerMoveAbility(e, ability.id)}
+                        onPointerUp={handlePointerUpAbility}
+                        className={`w-[270px] bg-slate-900 border-2 ${
+                          draggingAbilityId === ability.id
+                            ? 'border-amber-400 z-30 shadow-2xl scale-105'
+                            : 'border-cyan-900/60 z-10 hover:border-cyan-500'
+                        } rounded-xl p-4 space-y-2 cursor-grab active:cursor-grabbing transition-shadow select-none`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center gap-1.5">
+                            <Move className="w-3.5 h-3.5 text-slate-500" />
+                            <h3 className="font-bold text-cyan-300 text-sm truncate max-w-[150px]">
+                              {ability.name}
+                            </h3>
+                          </div>
+                          <div className="flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => editAbility(ability)}
+                              className="text-slate-500 hover:text-cyan-300"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() =>
+                                setAbilities(abilities.filter((a) => a.id !== ability.id))
+                              }
+                              className="text-slate-500 hover:text-rose-400"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500">
+                          {ability.attr} · {ability.damage || 'Sem dano'}
                         </p>
-                      )}
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => rollAbilityAttack(ability)}
-                          className="bg-amber-500 text-slate-950 font-bold py-2 rounded text-xs"
-                        >
-                          Rolar Acerto
-                        </button>
-                        <button
-                          onClick={() => castAbility(ability)}
-                          className="bg-cyan-600 text-slate-950 font-bold py-2 rounded text-xs"
-                        >
-                          Usar / Rolar Dano
-                        </button>
+                        {ability.desc && (
+                          <p className="text-xs text-slate-400 line-clamp-2 border-t border-slate-800 pt-1">
+                            {ability.desc}
+                          </p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-1.5 pt-1" onPointerDown={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => rollAbilityAttack(ability)}
+                            className="bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[10px]"
+                          >
+                            Acerto
+                          </button>
+                          <button
+                            onClick={() => castAbility(ability)}
+                            className="bg-cyan-600 text-slate-950 font-bold py-1.5 rounded text-[10px]"
+                          >
+                            Usar / Dano
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -1827,51 +2041,83 @@ export default function App() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {passives.map((passive) => (
-                  <div
-                    key={passive.id}
-                    className="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-2"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">
-                          {passive.type}
-                        </span>
-                        <h3 className="font-bold text-amber-300 mt-1">
-                          {passive.name}
-                        </h3>
+                {passives.map((passive) => {
+                  const badgeColor = getCategoryBadgeColor(passive.category);
+
+                  return (
+                    <div
+                      key={passive.id}
+                      className={`bg-slate-950 border-2 ${
+                        passive.active
+                          ? 'border-amber-400 bg-amber-950/20 shadow-lg shadow-amber-500/10'
+                          : 'border-slate-800'
+                      } rounded-lg p-4 space-y-3 transition-all`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-[10px] border px-2 py-0.5 rounded font-bold uppercase ${badgeColor}`}
+                            >
+                              {passive.category || 'Simples'}
+                            </span>
+                            <span className="text-[10px] text-cyan-400 bg-cyan-950/60 border border-cyan-800 px-2 py-0.5 rounded">
+                              ⚡ Reservado: {passive.reservedEnergy || 0}
+                            </span>
+                          </div>
+                          <h3 className="font-bold text-amber-300 mt-2">
+                            {passive.name}
+                          </h3>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => editPassive(passive)}
+                            className="text-slate-500 hover:text-amber-400"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() =>
+                              setPassives(
+                                passives.filter((p) => p.id !== passive.id)
+                              )
+                            }
+                            className="text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => editPassive(passive)}
-                          className="text-slate-500 hover:text-amber-400"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() =>
-                            setPassives(
-                              passives.filter((p) => p.id !== passive.id)
-                            )
-                          }
-                          className="text-slate-500 hover:text-rose-400"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+
+                      {passive.effect && (
+                        <p className="text-xs text-cyan-300">
+                          Efeito: {passive.effect}
+                        </p>
+                      )}
+
+                      {passive.desc && (
+                        <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
+                          {passive.desc}
+                        </p>
+                      )}
+
+                      {/* Botão de Toggle Ativa/Inativa com Desconto Automático de Energia */}
+                      <button
+                        onClick={() => togglePassiveActive(passive.id)}
+                        className={`w-full py-2 rounded text-xs font-bold transition-all ${
+                          passive.active
+                            ? 'bg-amber-500 text-slate-950 shadow-md'
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-400'
+                        }`}
+                      >
+                        {passive.active
+                          ? `ATIVA (Reservando ${passive.reservedEnergy || 0}⚡)`
+                          : 'INATIVA (Clique para Ativar)'}
+                      </button>
                     </div>
-                    {passive.effect && (
-                      <p className="text-xs text-cyan-300">
-                        Efeito: {passive.effect}
-                      </p>
-                    )}
-                    {passive.desc && (
-                      <p className="text-xs text-slate-400 border-t border-slate-800/80 pt-2">
-                        {passive.desc}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
@@ -1995,7 +2241,7 @@ export default function App() {
 
       </div>
 
-      {/* POPUP DE RESULTADO */}
+      {/* POPUP DE RESULTADO DA ROLAGEM COM CÁLCULO SEPARADO */}
       {activeRollResult && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-amber-500/60 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl space-y-4">
@@ -2008,6 +2254,12 @@ export default function App() {
               </button>
             </div>
             <p className="text-sm text-slate-300">{activeRollResult.label}</p>
+
+            {/* Exibição detalhada ex: 3, 1, 4, 8, 8 + 5 = 25 */}
+            <p className="text-sm font-mono text-cyan-300 bg-slate-950 p-2 rounded border border-slate-800">
+              {activeRollResult.breakdown}
+            </p>
+
             <p className="text-6xl font-black text-amber-400">
               {activeRollResult.total}
             </p>
@@ -2037,13 +2289,15 @@ export default function App() {
             {rollHistory.map((roll) => (
               <div
                 key={roll.id}
-                className="bg-slate-950 border border-slate-800 rounded p-2 mb-2 flex justify-between"
+                className="bg-slate-950 border border-slate-800 rounded p-2 mb-2 flex justify-between items-center"
               >
                 <div>
                   <p className="text-xs font-semibold">{roll.label}</p>
-                  <p className="text-[10px] text-slate-500">{roll.time}</p>
+                  <p className="text-[10px] text-cyan-400 font-mono">
+                    {roll.breakdown}
+                  </p>
                 </div>
-                <span className="text-amber-400 font-bold">{roll.total}</span>
+                <span className="text-amber-400 font-bold ml-2">{roll.total}</span>
               </div>
             ))}
           </div>
@@ -2079,7 +2333,7 @@ export default function App() {
               onChange={(e) =>
                 setNewWeapon({ ...newWeapon, dmg: e.target.value })
               }
-              placeholder="Dano: 1d8"
+              placeholder="Dano: 1d8, 2d6 + 3..."
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
             />
             <textarea
@@ -2087,7 +2341,7 @@ export default function App() {
               onChange={(e) =>
                 setNewWeapon({ ...newWeapon, desc: e.target.value })
               }
-              placeholder="Descrição da arma (efeitos, alcance, história...)"
+              placeholder="Descrição da arma..."
               rows={3}
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
@@ -2134,7 +2388,7 @@ export default function App() {
               onChange={(e) =>
                 setNewAbility({ ...newAbility, desc: e.target.value })
               }
-              placeholder="Descrição da habilidade (efeitos adicionais, condições...)"
+              placeholder="Descrição..."
               rows={3}
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
@@ -2148,7 +2402,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE USO DA HABILIDADE / GASTO DE ENERGIA E ROLAGEM CUSTOMIZADA */}
+      {/* MODAL DE USO DA HABILIDADE */}
       {abilityRollModal && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-cyan-500/40 rounded-xl p-6 max-w-md w-full space-y-5 shadow-2xl">
@@ -2225,7 +2479,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL DE PASSIVA/BUFF */}
+      {/* MODAL DE PASSIVA/BUFF COM CATEGORIAS E ENERGIA RESERVADA */}
       {isPassiveModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
@@ -2243,16 +2497,56 @@ export default function App() {
                 setNewPassive({ ...newPassive, name: e.target.value })
               }
               placeholder="Nome da passiva ou buff"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">
+                Categoria
+              </label>
+              <select
+                value={newPassive.category}
+                onChange={(e) =>
+                  setNewPassive({ ...newPassive, category: e.target.value })
+                }
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm text-amber-300 font-bold"
+              >
+                {PASSIVE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">
+                Energia Reservada (Gasto para manter ativa)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={newPassive.reservedEnergy}
+                onChange={(e) =>
+                  setNewPassive({
+                    ...newPassive,
+                    reservedEnergy: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+                placeholder="Custo de energia reservada"
+                className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm font-bold text-cyan-300"
+              />
+            </div>
+
             <input
               value={newPassive.effect}
               onChange={(e) =>
                 setNewPassive({ ...newPassive, effect: e.target.value })
               }
               placeholder="Efeito (ex: +2 Defesa, Visão Noturna)"
-              className="w-full bg-slate-950 border border-slate-800 p-2 rounded"
+              className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
             <textarea
               value={newPassive.desc}
               onChange={(e) =>
@@ -2262,6 +2556,7 @@ export default function App() {
               rows={3}
               className="w-full bg-slate-950 border border-slate-800 p-2 rounded text-sm"
             />
+
             <button
               onClick={savePassive}
               className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded"
