@@ -58,7 +58,7 @@ const CATEGORIES = [
 // Cálculo de limites de gasto de energia com base na Categoria e Nível de Controle
 const getAbilityCategoryLimits = (category, controlLevel = 0) => {
   const ctrl = Math.max(0, Number(controlLevel) || 0);
-  const base = Math.max(1, 16 - ctrl);
+  const base = Math.max(1, 15 - ctrl);
   let minMult = 1;
   let maxMult = 2;
 
@@ -283,7 +283,7 @@ export default function App() {
   const [newPassive, setNewPassive] = useState({
     name: '',
     category: 'Simples',
-    reservedEnergy: 16,
+    reservedEnergy: 15,
     active: false,
     effect: '',
     desc: '',
@@ -301,7 +301,7 @@ export default function App() {
   const [abilityRollQty, setAbilityRollQty] = useState(1);
   const [abilityRollSides, setAbilityRollSides] = useState(6);
   const [abilityRollBonus, setAbilityRollBonus] = useState(0);
-  const [abilityRollCost, setAbilityRollCost] = useState(16);
+  const [abilityRollCost, setAbilityRollCost] = useState(15);
 
   useEffect(() => {
     const level = Math.max(1, Number(charInfo.level) || 1);
@@ -1237,7 +1237,7 @@ export default function App() {
                     className="w-full bg-slate-900 border border-slate-800 p-1.5 rounded text-xs text-cyan-300 font-bold text-center"
                   />
                   <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                    Base: {Math.max(1, 16 - (Number(charInfo.controlLevel) || 0))}⚡
+                    Base: {Math.max(1, 15 - (Number(charInfo.controlLevel) || 0))}⚡
                   </span>
                 </div>
               </div>
